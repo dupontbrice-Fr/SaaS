@@ -1,6 +1,15 @@
 <?php
 class CatalogController {
 
+    private function archiveCategoryTree(int $catId, int $orgId): void {
+        Database::execute("UPDATE products SET archived_at=NOW() WHERE category_id=? AND org_id=? AND archived_at IS NULL", [$catId, $orgId]);
+        $subcats = Database::fetchAll("SELECT id FROM categories WHERE parent_id=? AND org_id=? AND archived_at IS NULL", [$catId, $orgId]);
+        foreach ($subcats as $sub) {
+            $this->archiveCategoryTree((int)$sub['id'], $orgId);
+        }
+        Database::execute("UPDATE categories SET archived_at=NOW() WHERE id=? AND org_id=?", [$catId, $orgId]);
+    }
+
     private function getBreadcrumb(int $categoryId, int $orgId): array {
         $breadcrumb = [];
         $id = $categoryId;
@@ -47,6 +56,7 @@ class CatalogController {
         }
 
         $allCategories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NULL ORDER BY name ASC", [$orgId]);
+        $allCatalogs   = $catalogs;
 
         include __DIR__ . '/../views/layout.php';
         include __DIR__ . '/../views/catalog/index.php';
@@ -80,6 +90,7 @@ class CatalogController {
         $catalogs          = [];
         $licensesForPanel  = [];
         $allCategories     = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NULL ORDER BY name ASC", [$orgId]);
+        $allCatalogs       = Database::fetchAll("SELECT id, name FROM catalogs WHERE org_id=? ORDER BY name ASC", [$orgId]);
 
         include __DIR__ . '/../views/layout.php';
         include __DIR__ . '/../views/catalog/index.php';
@@ -108,6 +119,7 @@ class CatalogController {
             $products   = Database::fetchAll("SELECT * FROM products WHERE org_id=? AND category_id=? AND archived_at IS NULL ORDER BY position ASC", [$orgId, $categoryId]);
         }
         $allCategories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NULL ORDER BY name ASC", [$orgId]);
+        $allCatalogs   = Database::fetchAll("SELECT id, name FROM catalogs WHERE org_id=? ORDER BY name ASC", [$orgId]);
 
         include __DIR__ . '/../views/layout.php';
         include __DIR__ . '/../views/catalog/index.php';
@@ -231,6 +243,9 @@ class CatalogController {
         $showTitle   = isset($_POST['show_title'])        ? 1 : 0;
         $viewableExt = isset($_POST['viewable_external']) ? 1 : 0;
         $imagePath   = $cat['image'];
+        $catalogId   = array_key_exists('catalog_id', $_POST)
+            ? (!empty($_POST['catalog_id']) ? (int)$_POST['catalog_id'] : null)
+            : $cat['catalog_id'];
 
         if (!empty($_FILES['image']['name'])) {
             $up = Upload::handle($_FILES['image'], 'categories', 'image');
@@ -240,8 +255,8 @@ class CatalogController {
         if ($cat['name'] !== $name)     Audit::log('modified','category',$name,'Nom',$cat['name'],$name);
         if ($cat['status'] !== $status) Audit::log('modified','category',$name,'Statut',$cat['status'],$status);
 
-        Database::execute("UPDATE categories SET name=?,image=?,status=?,show_title=?,viewable_external=? WHERE id=? AND org_id=?",
-            [$name,$imagePath,$status,$showTitle,$viewableExt,$id,$orgId]);
+        Database::execute("UPDATE categories SET name=?,image=?,status=?,show_title=?,viewable_external=?,catalog_id=? WHERE id=? AND org_id=?",
+            [$name,$imagePath,$status,$showTitle,$viewableExt,$catalogId,$id,$orgId]);
         echo json_encode(['success'=>true]);
     }
 
@@ -252,7 +267,7 @@ class CatalogController {
         $id    = (int)($params['id'] ?? 0);
         $cat   = Database::fetchOne("SELECT * FROM categories WHERE id=? AND org_id=?", [$id,$orgId]);
         if (!$cat) { echo json_encode(['success'=>false]); return; }
-        Database::execute("UPDATE categories SET archived_at=NOW() WHERE id=? AND org_id=?", [$id,$orgId]);
+        $this->archiveCategoryTree($id, $orgId);
         Audit::log('deleted','category',$cat['name']);
         echo json_encode(['success'=>true]);
     }

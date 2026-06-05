@@ -195,6 +195,29 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 </div>
 <?php endif; ?>
 
+<h3 style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-top:24px;margin-bottom:10px;">Produits archivés</h3>
+<?php if (empty($products)): ?>
+  <p class="text-muted text-sm" style="margin-bottom:20px;">Aucun produit archivé.</p>
+<?php else: ?>
+<div class="card" style="margin-bottom:20px;">
+  <table><thead><tr><th>Visuel</th><th>Titre</th><th>Catégorie</th><th>Archivé le</th><th>Actions</th></tr></thead><tbody>
+  <?php foreach ($products as $prod): ?>
+  <?php
+    $archFileIcon = match($prod['file_mime']??'') { 'video/mp4'=>'🎬','application/pdf'=>'📄',default=>'🖼️' };
+    if ($prod['file_type']==='url') $archFileIcon='🌐';
+  ?>
+  <tr>
+    <td><?php if ($prod['thumbnail']): ?><img src="/public/uploads/<?= htmlspecialchars($prod['thumbnail']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover;"><?php else: ?><div style="width:40px;height:40px;border-radius:6px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;font-size:18px;"><?= $archFileIcon ?></div><?php endif; ?></td>
+    <td><strong><?= htmlspecialchars($prod['name']) ?></strong></td>
+    <td class="text-sm text-muted"><?= htmlspecialchars($prod['category_name'] ?? '—') ?></td>
+    <td class="text-sm text-muted"><?= date('d/m/Y H:i',strtotime($prod['archived_at'])) ?></td>
+    <td><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="restoreProduct(<?= $prod['id'] ?>)">Restaurer</button><button class="btn btn-danger btn-sm" onclick="hardDeleteProduct(<?= $prod['id'] ?>)">Supprimer</button></div></td>
+  </tr>
+  <?php endforeach; ?>
+  </tbody></table>
+</div>
+<?php endif; ?>
+
 <?php else: ?>
 <!-- ── CATALOGUE ── -->
 
@@ -355,9 +378,20 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
       <button class="modal-close" onclick="closeModal('modalAddCategory')">×</button>
     </div>
     <form id="formCategory" enctype="multipart/form-data">
-      <input type="hidden" id="catId"      name="cat_id"    value="">
-      <input type="hidden" id="catParentId" name="parent_id" value="<?= $currentCatId ?? '' ?>">
-      <input type="hidden" id="catCatalogId" name="catalog_id" value="<?= $catalogId ?? '' ?>">
+      <input type="hidden" id="catId"           name="cat_id"    value="">
+      <input type="hidden" id="catParentId"    name="parent_id" value="<?= $currentCatId ?? '' ?>">
+      <input type="hidden" id="catCatalogIdHidden" name="catalog_id" value="<?= $catalogId ?? '' ?>">
+      <div id="catCatalogSelectWrap" style="display:none;margin-top:4px;">
+        <div class="form-input-floating">
+          <select id="catCatalogIdSelect">
+            <option value="">Aucun catalogue</option>
+            <?php foreach ($allCatalogs ?? [] as $cl): ?>
+            <option value="<?= $cl['id'] ?>"><?= htmlspecialchars($cl['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <label>Ajouter à un catalogue</label>
+        </div>
+      </div>
 
       <div class="upload-zone" id="catDropZone" onclick="document.getElementById('catImage').click()" style="cursor:pointer;">
         <input type="file" id="catImage" name="image" accept="image/jpeg,image/jpg,image/png" style="display:none;" onchange="showFilePreview(this.files[0], document.getElementById('catImagePreview'))">
@@ -571,6 +605,10 @@ function openAddCategoryModal() {
   document.getElementById('modalCatTitle').textContent = 'Ajouter une catégorie';
   document.getElementById('catSubmitBtn').textContent = 'AJOUTER';
   document.getElementById('catParentId').value = '<?= $currentCatId ?? '' ?>';
+  document.getElementById('catCatalogIdHidden').setAttribute('name', 'catalog_id');
+  document.getElementById('catCatalogIdHidden').value = '<?= $catalogId ?? '' ?>';
+  document.getElementById('catCatalogIdSelect').removeAttribute('name');
+  document.getElementById('catCatalogSelectWrap').style.display = 'none';
   openModal('modalAddCategory');
 }
 
@@ -586,6 +624,10 @@ async function openEditCategory(id) {
   document.getElementById('catImagePreview').style.display = 'none';
   document.getElementById('modalCatTitle').textContent = 'Modifier la catégorie';
   document.getElementById('catSubmitBtn').textContent = 'ENREGISTRER';
+  document.getElementById('catCatalogIdHidden').removeAttribute('name');
+  document.getElementById('catCatalogIdSelect').setAttribute('name', 'catalog_id');
+  document.getElementById('catCatalogIdSelect').value = cat.catalog_id || '';
+  document.getElementById('catCatalogSelectWrap').style.display = 'block';
   openModal('modalAddCategory');
 }
 
@@ -600,7 +642,7 @@ document.getElementById('formCategory').addEventListener('submit', async functio
 
 async function archiveCategory(id) {
   closeAllMenus();
-  if (!await confirmDelete('Archiver cette catégorie ?')) return;
+  if (!await confirmDelete('Archiver cette catégorie ainsi que tous les produits et sous-catégories qu\'elle contient ?')) return;
   const res = await apiPost(`/manage/catalog/category/${id}/delete`, new FormData());
   if (res.success) { toast('Archivée'); location.reload(); }
 }
