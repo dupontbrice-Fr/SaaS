@@ -17,19 +17,5 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            android/**
-            android-patches/**
-            src/**
-            dist/**
-            .github/**
-            vite.config.js
-            capacitor.config.ts
-            index.html
-            package.json
-            package-lock.json
-            README.md
+          local-dir: app/
+          server-dir: /html/
