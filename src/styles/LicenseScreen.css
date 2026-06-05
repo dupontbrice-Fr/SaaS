@@ -1,0 +1,133 @@
+.license-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 24px;
+}
+
+.license-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+.license-logo {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.license-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.license-logo h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+}
+
+.license-logo p {
+  font-size: 14px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.license-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.license-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.license-form input {
+  padding: 15px 18px;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  font-size: 17px;
+  letter-spacing: 3px;
+  text-align: center;
+  font-weight: 600;
+  color: #1a1a2e;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fafafa;
+}
+
+.license-form input:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.12);
+  background: #fff;
+}
+
+.license-form input:disabled {
+  opacity: 0.5;
+}
+
+.license-form button[type="submit"] {
+  margin-top: 6px;
+  padding: 15px;
+  background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.license-form button[type="submit"]:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.license-form button[type="submit"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+.error-box {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #fed7d7;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

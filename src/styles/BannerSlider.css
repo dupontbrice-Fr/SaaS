@@ -1,0 +1,44 @@
+.banner-slider {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.banner-slide {
+  display: none;
+}
+
+.banner-slide.active {
+  display: block;
+}
+
+.banner-slide img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+}
+
+.banner-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dot.active {
+  background: #fff;
+}

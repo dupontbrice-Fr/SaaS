@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copier ce fichier vers :
+  android/app/src/main/res/xml/network_security_config.xml
+
+  Puis dans android/app/src/main/AndroidManifest.xml, ajouter dans <application> :
+  android:networkSecurityConfig="@xml/network_security_config"
+-->
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">saasapp.s196298.fvl-001.webo-facto.com</domain>
+  </domain-config>
+  <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
