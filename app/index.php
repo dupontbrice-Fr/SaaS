@@ -169,6 +169,15 @@ $router->get('/viewer', function() {
     }
     $settings = Database::fetchOne("SELECT * FROM settings WHERE org_id = ?", [$orgId]);
 
+    $screensavers = Database::fetchAll(
+        "SELECT * FROM screensavers WHERE org_id = ? AND status = 'active' ORDER BY position ASC",
+        [$orgId]
+    );
+    foreach ($screensavers as &$sv) {
+        if ($sv['file_path']) $sv['file_url'] = '/public/uploads/' . $sv['file_path'];
+    }
+    unset($sv);
+
     include __DIR__ . '/views/viewer.php';
 });
 

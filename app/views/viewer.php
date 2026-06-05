@@ -91,6 +91,12 @@ body { background: #1a1b2e; color: white; font-family: 'Inter', sans-serif; min-
 </div>
 <?php endif; ?>
 
+<!-- Screensaver overlay -->
+<div id="screensaverOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9999; align-items:center; justify-content:center;">
+  <div id="ssContent" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden;"></div>
+  <div style="position:absolute; bottom:20px; right:20px; color:rgba(255,255,255,0.4); font-size:12px; pointer-events:none;">Touchez l'écran pour continuer</div>
+</div>
+
 <script>
 let currentCategory = null;
 const token = '<?= htmlspecialchars($screen['token']) ?>';
@@ -161,6 +167,88 @@ function backToProducts() {
 setInterval(() => {
   fetch('/api/v1/screen/heartbeat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
 }, 30000);
+
+// ── Screensaver ──────────────────────────────────────────────
+const screensaverDelay = <?= (int)($settings['screensaver_delay'] ?? 300) ?> * 1000;
+const screensavers = <?= json_encode(array_values($screensavers ?? [])) ?>;
+
+let idleTimer = null;
+let ssIndex = 0;
+let ssSlideTimer = null;
+let ssActive = false;
+
+function resetIdleTimer() {
+  if (ssActive) { hideScreensaver(); return; }
+  clearTimeout(idleTimer);
+  if (screensavers.length && screensaverDelay > 0) {
+    idleTimer = setTimeout(showScreensaver, screensaverDelay);
+  }
+}
+
+function showScreensaver() {
+  ssActive = true;
+  ssIndex = 0;
+  document.getElementById('screensaverOverlay').style.display = 'flex';
+  showSlide();
+}
+
+function hideScreensaver() {
+  ssActive = false;
+  clearTimeout(ssSlideTimer);
+  document.getElementById('screensaverOverlay').style.display = 'none';
+  document.getElementById('ssContent').innerHTML = '';
+  resetIdleTimer();
+}
+
+function showSlide() {
+  if (!screensavers.length) return;
+  const ss = screensavers[ssIndex];
+  const container = document.getElementById('ssContent');
+  container.innerHTML = '';
+  clearTimeout(ssSlideTimer);
+
+  if (ss.file_type === 'url' && ss.url) {
+    container.innerHTML = `<iframe src="${ss.url}" style="width:100%;height:100%;border:none;"></iframe>`;
+    ssSlideTimer = setTimeout(nextSlide, 15000);
+  } else if (ss.file_url) {
+    const ext = (ss.file_url.split('.').pop() || '').toLowerCase().split('?')[0];
+    if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+      const img = document.createElement('img');
+      img.src = ss.file_url;
+      img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+      container.appendChild(img);
+      ssSlideTimer = setTimeout(nextSlide, 8000);
+    } else if (['mp4','webm','ogg'].includes(ext)) {
+      const vid = document.createElement('video');
+      vid.src = ss.file_url;
+      vid.autoplay = true;
+      vid.muted = true;
+      vid.loop = false;
+      vid.style.cssText = 'max-width:100%;max-height:100%;';
+      vid.onended = nextSlide;
+      ssSlideTimer = setTimeout(nextSlide, 120000); // fallback
+      container.appendChild(vid);
+    } else if (ext === 'pdf') {
+      container.innerHTML = `<iframe src="${ss.file_url}" style="width:100%;height:100%;border:none;"></iframe>`;
+      ssSlideTimer = setTimeout(nextSlide, 15000);
+    } else {
+      nextSlide();
+    }
+  } else {
+    nextSlide();
+  }
+}
+
+function nextSlide() {
+  ssIndex = (ssIndex + 1) % screensavers.length;
+  showSlide();
+}
+
+['mousemove','mousedown','touchstart','keydown','click','scroll'].forEach(evt => {
+  document.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+
+resetIdleTimer();
 </script>
 </body>
 </html>
