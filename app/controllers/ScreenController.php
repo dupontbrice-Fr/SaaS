@@ -16,6 +16,11 @@ class ScreenController {
     public function addDemo(array $params = []): void {
         Auth::require();
         header('Content-Type: application/json');
+        if (!Auth::isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Seul un administrateur peut ajouter un écran démo.']);
+            return;
+        }
         $orgId = Auth::orgId();
 
         $name = trim($_POST['name'] ?? 'Écran démo');

@@ -23,6 +23,7 @@ require_once __DIR__ . '/controllers/LibraryController.php';
 require_once __DIR__ . '/controllers/AuditController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
 require_once __DIR__ . '/controllers/LicenseController.php';
+require_once __DIR__ . '/controllers/UserController.php';
 
 // Session
 session_name(SESSION_NAME);
@@ -113,6 +114,11 @@ $router->post('/manage/certificates/generate/{id}', [CertificateController::clas
 $router->get('/manage/certificates/download/{id}', [CertificateController::class, 'download']);
 $router->post('/manage/certificates/{id}/delete', [CertificateController::class, 'delete']);
 $router->get('/manage/certificates/zip', [CertificateController::class, 'downloadZip']);
+
+// ── Users ────────────────────────────────────────────────────
+$router->get('/manage/users', [UserController::class, 'index']);
+$router->post('/manage/users/create', [UserController::class, 'create']);
+$router->post('/manage/users/{id}/delete', [UserController::class, 'delete']);
 
 // ── Licenses ─────────────────────────────────────────────────
 $router->get('/manage/licenses', [LicenseController::class, 'index']);

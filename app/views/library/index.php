@@ -67,9 +67,17 @@ $totalSize = array_sum(array_column($stats, 'total_size'));
       <div class="library-item-name"><?= htmlspecialchars($m['original_name']) ?></div>
       <div class="library-item-size"><?= Upload::formatSize((int)$m['file_size']) ?></div>
     </div>
+    <?php if (!empty($m['admin_protected'])): ?>
+      <div style="position:absolute;top:4px;left:4px;" title="Contenu protégé (ajouté par un administrateur)">
+        <span style="background:rgba(0,0,0,.55);color:#fff;border-radius:4px;padding:2px 5px;font-size:11px;">🔒</span>
+      </div>
+    <?php endif; ?>
+    <?php $canDelete = Auth::isAdmin() || empty($m['admin_protected']); ?>
+    <?php if ($canDelete): ?>
     <div style="position:absolute;top:4px;right:4px;opacity:0;" class="lib-delete-btn" data-id="<?= $m['id'] ?>">
       <button class="btn btn-danger btn-sm btn-icon" onclick="deleteMedia(<?= $m['id'] ?>)" title="Supprimer">✕</button>
     </div>
+    <?php endif; ?>
   </div>
   <?php endforeach; ?>
 </div>

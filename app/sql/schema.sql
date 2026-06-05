@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS `media_library` (
   `path` varchar(500) NOT NULL,
   `used_in` varchar(50) DEFAULT NULL,
   `used_id` int(11) DEFAULT NULL,
+  `admin_protected` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `org_id` (`org_id`),

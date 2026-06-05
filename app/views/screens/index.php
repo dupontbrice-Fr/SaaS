@@ -9,11 +9,13 @@ function formatBytes(int $bytes): string {
 
 <h1 class="page-title">Liste des écrans</h1>
 
+<?php if (Auth::isAdmin()): ?>
 <div style="margin-bottom:24px;">
   <button class="btn btn-primary" onclick="openModal('modalAddDemo')">
     AJOUTER UN ÉCRAN DÉMO
   </button>
 </div>
+<?php endif; ?>
 
 <!-- Screens grid -->
 <div style="display:flex; flex-wrap:wrap; gap:20px;">

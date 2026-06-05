@@ -51,9 +51,10 @@ class LibraryController {
         $up = Upload::handle($_FILES['file'], 'library', 'media');
         if (!$up['success']) { echo json_encode($up); return; }
 
+        $adminProtected = Auth::isAdmin() ? 1 : 0;
         $id = Database::insert(
-            "INSERT INTO media_library (org_id, filename, original_name, file_type, mime_type, file_size, path) VALUES (?,?,?,?,?,?,?)",
-            [$orgId, $up['filename'], $up['original_name'], Upload::mediaType($up['mime']), $up['mime'], $up['size'], $up['path']]
+            "INSERT INTO media_library (org_id, filename, original_name, file_type, mime_type, file_size, path, admin_protected) VALUES (?,?,?,?,?,?,?,?)",
+            [$orgId, $up['filename'], $up['original_name'], Upload::mediaType($up['mime']), $up['mime'], $up['size'], $up['path'], $adminProtected]
         );
 
         echo json_encode(['success' => true, 'id' => $id, 'url' => $up['url']]);
@@ -67,6 +68,11 @@ class LibraryController {
 
         $media = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$id, $orgId]);
         if ($media) {
+            $currentUser = Auth::user();
+            if (!empty($media['admin_protected']) && $currentUser['role'] === 'user') {
+                echo json_encode(['success' => false, 'error' => 'Ce contenu a été ajouté par un administrateur et ne peut pas être supprimé.']);
+                return;
+            }
             Upload::delete($media['path']);
             Database::execute("DELETE FROM media_library WHERE id = ? AND org_id = ?", [$id, $orgId]);
         }
