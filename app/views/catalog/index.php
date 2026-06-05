@@ -1,13 +1,14 @@
 <?php
 $isArchive       = ($subView === 'archives');
 $insideCategory  = !is_null($currentCategory);
+$insideCatalog   = !is_null($currentCatalog);  // set when browsing a specific catalog
 $currentCatId    = $currentCategory['id'] ?? null;
+$catalogId       = $currentCatalog['id'] ?? null;
 $filter          = $filter ?? 'all';
 $returnUrl       = $insideCategory
-    ? ($currentCategory['parent_id'] ? '/manage/catalog/browse/' . $currentCategory['parent_id'] : '/manage/catalog')
-    : '/manage/catalog';
+    ? ($currentCategory['parent_id'] ? '/manage/catalog/browse/' . $currentCategory['parent_id'] : ($insideCatalog ? '/manage/catalog/categories/' . $catalogId : '/manage/catalog'))
+    : ($insideCatalog ? '/manage/catalog' : '/manage/catalog');
 
-// Color palette for categories without image
 $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 ?>
 
@@ -21,6 +22,12 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
     Accueil
   </a>
+  <?php if ($insideCatalog): ?>
+    <span>›</span>
+    <a href="/manage/catalog/categories/<?= $catalogId ?>" style="color:var(--text-muted);text-decoration:none;">
+      <?= htmlspecialchars($currentCatalog['name']) ?>
+    </a>
+  <?php endif; ?>
   <?php foreach ($breadcrumb as $bc): ?>
     <span>›</span>
     <a href="/manage/catalog/browse/<?= $bc['id'] ?>" style="color:var(--text-muted);text-decoration:none;display:flex;align-items:center;gap:4px;">
@@ -30,10 +37,116 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
   <?php endforeach; ?>
 </div>
 
-<!-- ── FILTER TABS ── -->
+<?php if (!$insideCategory && !$insideCatalog): ?>
+<!-- ══════════════════════════════════════════════════════════════
+     TOP LEVEL: Device Panel + Catalog List
+     ══════════════════════════════════════════════════════════════ -->
+
+<!-- Device Code Panel -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;" onclick="toggleDevicePanel()">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+      <span style="font-size:14px;font-weight:600;">Attribuer un catalogue par Code Device</span>
+    </div>
+    <svg id="devicePanelArrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s;"><polyline points="18 15 12 9 6 15"/></svg>
+  </div>
+
+  <div id="devicePanelContent" style="display:none;margin-top:16px;">
+    <?php if (empty($licensesForPanel)): ?>
+      <p class="text-sm text-muted">Aucun code device actif. Générez des licences dans l'onglet Licences.</p>
+    <?php else: ?>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+      <div>
+        <div class="form-input-floating">
+          <select id="deviceCodeSelect" onchange="loadDeviceScreens(this.value)">
+            <option value="">— Sélectionner un Code Device —</option>
+            <?php foreach ($licensesForPanel as $lic): ?>
+            <option value="<?= $lic['screen_id'] ?>" data-catalog="<?= $lic['screen_catalog_id'] ?? '' ?>">
+              <?= htmlspecialchars($lic['code']) ?>
+              <?= $lic['screen_name'] ? ' — ' . htmlspecialchars($lic['screen_name']) : ' (non assigné)' ?>
+            </option>
+            <?php endforeach; ?>
+          </select>
+          <label>Code Device</label>
+        </div>
+      </div>
+      <div id="deviceAssignZone" style="display:none;">
+        <div id="deviceScreenInfo" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="form-input-floating" style="flex:1;margin-bottom:0;">
+            <select id="deviceCatalogAssign">
+              <option value="">Aucun catalogue (défaut)</option>
+              <?php foreach ($catalogs as $cat): ?>
+              <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <label>Catalogue</label>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="assignCatalogToDevice()" style="flex-shrink:0;">Attribuer</button>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<!-- Catalog List -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+  <span style="font-size:14px;font-weight:600;">Catalogues</span>
+  <button class="btn btn-primary btn-sm" onclick="openAddCatalogModal()">+ Nouveau catalogue</button>
+</div>
+
+<?php if (empty($catalogs)): ?>
+<div class="card" style="text-align:center;padding:40px 20px;margin-bottom:20px;">
+  <div style="font-size:36px;margin-bottom:12px;">📂</div>
+  <div style="font-size:14px;color:var(--text-muted);">Aucun catalogue — créez-en un pour organiser votre contenu par écran.</div>
+</div>
+<?php else: ?>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px;">
+  <?php foreach ($catalogs as $i => $cat): ?>
+  <div class="catalog-card" style="cursor:pointer;min-height:120px;" onclick="location='/manage/catalog/categories/<?= $cat['id'] ?>'">
+    <div class="catalog-card-placeholder" style="background:<?= $palette[$i % count($palette)] ?>;font-size:14px;">
+      <?= htmlspecialchars(strtoupper(substr($cat['name'], 0, 2))) ?>
+    </div>
+    <div class="catalog-card-overlay">
+      <div>
+        <div class="catalog-card-label"><?= htmlspecialchars($cat['name']) ?></div>
+        <div class="catalog-card-type"><?= (int)$cat['cat_count'] ?> catégorie<?= $cat['cat_count'] != 1 ? 's' : '' ?></div>
+      </div>
+    </div>
+    <div class="catalog-card-actions" style="z-index:2;position:absolute;top:8px;right:8px;">
+      <div style="position:relative;">
+        <button class="btn btn-secondary btn-sm btn-icon" style="background:rgba(0,0,0,0.55);border:none;"
+                onclick="event.preventDefault();event.stopPropagation();toggleCardMenu('catMenu<?= $cat['id'] ?>')">⋮</button>
+        <div class="catalog-card-menu" id="catMenu<?= $cat['id'] ?>" style="display:none;">
+          <div class="catalog-card-menu-item" onclick="event.stopPropagation();openEditCatalogModal(<?= $cat['id'] ?>)">✏️ Modifier</div>
+          <div class="catalog-card-menu-item danger" onclick="event.stopPropagation();deleteCatalog(<?= $cat['id'] ?>)">🗑️ Supprimer</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<!-- Sans-catalogue shortcut -->
+<div style="margin-bottom:20px;">
+  <a href="/manage/catalog/categories/0" class="btn btn-secondary btn-sm">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    Voir les catégories sans catalogue
+  </a>
+</div>
+
+<?php else: ?>
+<!-- ══════════════════════════════════════════════════════════════
+     INSIDE A CATALOG (or category) — existing catalog management
+     ══════════════════════════════════════════════════════════════ -->
+
+<!-- FILTER TABS -->
 <div class="tabs">
   <?php
-  $baseUrl = $insideCategory ? '/manage/catalog/browse/'.$currentCatId : '/manage/catalog';
+  $baseUrl = $insideCategory ? '/manage/catalog/browse/' . $currentCatId : ($insideCatalog ? '/manage/catalog/categories/' . $catalogId : '/manage/catalog');
   $subParam = $isArchive ? '&sub=archives' : '';
   ?>
   <a href="<?= $baseUrl ?>?filter=all<?= $subParam ?>"
@@ -54,7 +167,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
     RÉORGANISER
   </span>
-  <!-- Sub-tabs: Catalogue / Archives -->
   <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
     <a href="<?= $baseUrl ?>" class="sub-tab <?= !$isArchive ? 'active' : '' ?>">Catalogue</a>
     <a href="<?= $baseUrl ?>?sub=archives" class="sub-tab <?= $isArchive ? 'active' : '' ?>">Archives</a>
@@ -62,7 +174,7 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 </div>
 
 <?php if ($isArchive): ?>
-<!-- ══════ ARCHIVES ══════ -->
+<!-- ── ARCHIVES ── -->
 <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Les éléments archivés peuvent être restaurés ou supprimés définitivement.</div>
 
 <h3 style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Catégories archivées</h3>
@@ -83,29 +195,9 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 </div>
 <?php endif; ?>
 
-<h3 style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Produits archivés</h3>
-<?php if (empty($products)): ?>
-  <p class="text-muted text-sm">Aucun produit archivé.</p>
 <?php else: ?>
-<div class="card">
-  <table><thead><tr><th>Visuel</th><th>Titre</th><th>Catégorie</th><th>Archivé le</th><th>Actions</th></tr></thead><tbody>
-  <?php foreach ($products as $prod): ?>
-  <tr>
-    <td><?php if ($prod['thumbnail']): ?><img src="/public/uploads/<?= htmlspecialchars($prod['thumbnail']) ?>" style="width:40px;height:40px;border-radius:6px;object-fit:cover;"><?php else: ?><div style="width:40px;height:40px;border-radius:6px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;">📄</div><?php endif; ?></td>
-    <td><strong><?= htmlspecialchars($prod['name']) ?></strong></td>
-    <td class="text-muted text-sm"><?= htmlspecialchars($prod['category_name'] ?? '—') ?></td>
-    <td class="text-sm text-muted"><?= date('d/m/Y H:i',strtotime($prod['archived_at'])) ?></td>
-    <td><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="restoreProduct(<?= $prod['id'] ?>)">Restaurer</button><button class="btn btn-danger btn-sm" onclick="hardDeleteProduct(<?= $prod['id'] ?>)">Supprimer</button></div></td>
-  </tr>
-  <?php endforeach; ?>
-  </tbody></table>
-</div>
-<?php endif; ?>
+<!-- ── CATALOGUE ── -->
 
-<?php else: ?>
-<!-- ══════ CATALOGUE ══════ -->
-
-<!-- Action buttons -->
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
   <?php if ($filter !== 'products'): ?>
   <button class="btn btn-primary" onclick="openAddCategoryModal()">
@@ -123,7 +215,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
   <input type="text" class="form-input" placeholder="🔍 Rechercher..." style="width:220px;" oninput="filterCards(this.value)">
 </div>
 
-<!-- Items info -->
 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
   <?php if (!empty($categories)): ?>
   <span class="badge badge-info"><?= count($categories) ?> catégorie<?= count($categories)>1?'s':'' ?></span>
@@ -131,25 +222,19 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
   <?php if (!empty($products)): ?>
   <span class="badge badge-info"><?= count($products) ?> produit<?= count($products)>1?'s':'' ?></span>
   <?php endif; ?>
-  <?php if ($insideCategory && empty($categories) && empty($products)): ?>
-  <span class="text-muted text-sm">Dossier vide — ajoutez une sous-catégorie ou un produit</span>
-  <?php elseif (!$insideCategory && empty($categories)): ?>
+  <?php if ($insideCatalog && !$insideCategory && empty($categories)): ?>
   <span class="text-muted text-sm">Aucune catégorie — cliquez sur "+ CATÉGORIE" pour commencer</span>
+  <?php elseif ($insideCategory && empty($categories) && empty($products)): ?>
+  <span class="text-muted text-sm">Dossier vide — ajoutez une sous-catégorie ou un produit</span>
   <?php endif; ?>
 </div>
 
-<!-- Grid -->
 <div id="catalogGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;">
 
   <?php if ($filter !== 'products'): ?>
-  <!-- CATEGORIES -->
   <?php foreach ($categories as $i => $cat): ?>
-  <div class="catalog-card cat-item" data-id="<?= $cat['id'] ?>" data-type="category" data-name="<?= htmlspecialchars($cat['name']) ?>" draggable="true"
-       style="cursor:pointer;">
-
-    <!-- Click = navigate into -->
+  <div class="catalog-card cat-item" data-id="<?= $cat['id'] ?>" data-type="category" data-name="<?= htmlspecialchars($cat['name']) ?>" draggable="true" style="cursor:pointer;">
     <a href="/manage/catalog/browse/<?= $cat['id'] ?>" style="display:block;width:100%;height:100%;text-decoration:none;position:absolute;inset:0;z-index:1;"></a>
-
     <?php if ($cat['image']): ?>
       <img src="/public/uploads/<?= htmlspecialchars($cat['image']) ?>" class="catalog-card-img" alt="">
     <?php else: ?>
@@ -157,7 +242,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         <?= htmlspecialchars(strtoupper($cat['name'])) ?>
       </div>
     <?php endif; ?>
-
     <div class="catalog-card-overlay">
       <div>
         <div class="catalog-card-label"><?= htmlspecialchars($cat['name']) ?></div>
@@ -165,8 +249,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
       </div>
       <span class="badge <?= $cat['status']==='active'?'badge-success':'badge-danger' ?>" style="font-size:9px;"><?= $cat['status']==='active'?'Actif':'Inactif' ?></span>
     </div>
-
-    <!-- 3-dot menu (z-index above the link) -->
     <div class="catalog-card-actions" style="z-index:2;position:absolute;top:8px;right:8px;">
       <div style="position:relative;">
         <button class="btn btn-secondary btn-sm btn-icon" style="background:rgba(0,0,0,0.55);border:none;"
@@ -182,14 +264,12 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
   <?php endif; ?>
 
   <?php if ($filter !== 'all' || $insideCategory): ?>
-  <!-- PRODUCTS (only shown inside a category) -->
   <?php foreach ($products as $prod): ?>
   <?php
   $fileIcon = match($prod['file_mime']??'') { 'video/mp4'=>'🎬','application/pdf'=>'📄',default=>'🖼️' };
   if ($prod['file_type']==='url') $fileIcon='🌐';
   ?>
   <div class="catalog-card prod-item" data-id="<?= $prod['id'] ?>" data-type="product" data-name="<?= htmlspecialchars($prod['name']) ?>" draggable="true">
-
     <?php if ($prod['thumbnail']): ?>
       <img src="/public/uploads/<?= htmlspecialchars($prod['thumbnail']) ?>" class="catalog-card-img" alt="">
     <?php elseif ($prod['file_path'] && in_array($prod['file_mime']??'',['image/jpeg','image/png','image/jpg'])): ?>
@@ -200,7 +280,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         <span style="font-size:10px;color:var(--text-muted);"><?= strtoupper($prod['file_type']==='url'?'URL':($prod['file_mime']?explode('/',$prod['file_mime'])[1]??'':'-')) ?></span>
       </div>
     <?php endif; ?>
-
     <div class="catalog-card-overlay">
       <div>
         <div class="catalog-card-label"><?= htmlspecialchars($prod['name']) ?></div>
@@ -208,7 +287,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
       </div>
       <span class="badge <?= $prod['status']==='active'?'badge-success':'badge-danger' ?>" style="font-size:9px;"><?= $prod['status']==='active'?'Actif':'Inactif' ?></span>
     </div>
-
     <div class="catalog-card-actions" style="z-index:2;position:absolute;top:8px;right:8px;">
       <div style="position:relative;">
         <button class="btn btn-secondary btn-sm btn-icon" style="background:rgba(0,0,0,0.55);border:none;"
@@ -232,13 +310,39 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 
 </div>
 
-<?php if (!$insideCategory && !empty($categories)): ?>
+<?php if ($insideCatalog && !$insideCategory && !empty($categories)): ?>
 <div style="margin-top:16px;font-size:12px;color:var(--text-muted);">💡 Cliquez sur une catégorie pour l'ouvrir et y ajouter des produits.</div>
 <?php endif; ?>
 
 <?php endif; // end !isArchive ?>
+<?php endif; // end top-level vs inside-catalog ?>
 
-<!-- ══ MODALS ══════════════════════════════════════════════════ -->
+<!-- ══ MODALS ════════════════════════════════════════════════════ -->
+
+<!-- Modal: Add / Edit Catalog -->
+<div class="modal-overlay" id="modalAddCatalog" style="display:none;">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modalCatalogTitle">Créer un catalogue</div>
+      <button class="modal-close" onclick="closeModal('modalAddCatalog')">×</button>
+    </div>
+    <form id="formCatalog">
+      <input type="hidden" id="catalogEditId" value="">
+      <div class="form-input-floating">
+        <input type="text" id="catalogName" name="name" placeholder=" " required>
+        <label>Nom du catalogue</label>
+      </div>
+      <div class="form-input-floating">
+        <textarea id="catalogDesc" name="description" placeholder=" " rows="2" style="resize:vertical;"></textarea>
+        <label>Description (optionnel)</label>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary" id="catalogSubmitBtn">CRÉER</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalAddCatalog')">ANNULER</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- Modal: Add / Edit Category -->
 <div class="modal-overlay" id="modalAddCategory" style="display:none;">
@@ -253,6 +357,7 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
     <form id="formCategory" enctype="multipart/form-data">
       <input type="hidden" id="catId"      name="cat_id"    value="">
       <input type="hidden" id="catParentId" name="parent_id" value="<?= $currentCatId ?? '' ?>">
+      <input type="hidden" id="catCatalogId" name="catalog_id" value="<?= $catalogId ?? '' ?>">
 
       <div class="upload-zone" id="catDropZone" onclick="document.getElementById('catImage').click()" style="cursor:pointer;">
         <input type="file" id="catImage" name="image" accept="image/jpeg,image/jpg,image/png" style="display:none;" onchange="showFilePreview(this.files[0], document.getElementById('catImagePreview'))">
@@ -311,7 +416,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         <input type="text" id="prodName" name="name" placeholder=" " required>
         <label>Titre</label>
       </div>
-
       <div class="form-input-floating">
         <select id="prodFileType" name="file_type" onchange="toggleProdFileType(this.value)">
           <option value="media">Media (JPG, PNG, JPEG, MP4, PDF)</option>
@@ -319,14 +423,12 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         </select>
         <label>Type de fichier produit</label>
       </div>
-
       <div id="prodUrlField" style="display:none;">
         <div class="form-input-floating">
           <input type="text" id="prodUrl" name="url" placeholder=" ">
           <label>Url du site</label>
         </div>
       </div>
-
       <div class="form-input-floating">
         <select id="prodCategoryId" name="category_id" required>
           <option value="">— Sélectionnez une catégorie —</option>
@@ -336,7 +438,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         </select>
         <label>Catégorie *</label>
       </div>
-
       <div class="form-input-floating">
         <select id="prodStatus" name="status">
           <option value="active">Actif</option>
@@ -344,7 +445,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         </select>
         <label>Statut</label>
       </div>
-
       <label class="form-check"><input type="checkbox" name="downloadable" checked><span class="form-check-label">Fichier téléchargeable</span></label>
       <label class="form-check"><input type="checkbox" name="show_title" checked><span class="form-check-label">Afficher le titre sur l'écran</span></label>
       <div id="prodUrlOptions" style="display:none;">
@@ -382,7 +482,85 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 </style>
 
 <script>
-// ── Helpers ──
+// ── Device Panel ──
+function toggleDevicePanel() {
+  const content = document.getElementById('devicePanelContent');
+  const arrow   = document.getElementById('devicePanelArrow');
+  const open    = content.style.display === 'none';
+  content.style.display = open ? 'block' : 'none';
+  arrow.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+let currentDeviceScreenId = null;
+
+function loadDeviceScreens(screenId) {
+  const zone = document.getElementById('deviceAssignZone');
+  const info = document.getElementById('deviceScreenInfo');
+  if (!screenId) { zone.style.display = 'none'; return; }
+  currentDeviceScreenId = screenId;
+
+  // Find the selected option data
+  const sel = document.getElementById('deviceCodeSelect');
+  const opt = sel.options[sel.selectedIndex];
+  zone.style.display = 'block';
+
+  // Pre-select the current catalog if set
+  const currentCatalogId = opt.getAttribute('data-catalog') || '';
+  document.getElementById('deviceCatalogAssign').value = currentCatalogId;
+
+  const screenName = opt.text.split(' — ')[1] || opt.text;
+  info.innerHTML = `<strong>Écran :</strong> ${screenName}`;
+}
+
+async function assignCatalogToDevice() {
+  if (!currentDeviceScreenId) return;
+  const catalogId = document.getElementById('deviceCatalogAssign').value;
+  const fd = new FormData();
+  fd.append('catalog_id', catalogId);
+  const res = await apiPost(`/manage/catalog/assign-screen/${currentDeviceScreenId}`, fd);
+  if (res.success) toast('Catalogue attribué ✓');
+  else toast(res.error || 'Erreur', 'error');
+}
+
+// ── Catalog CRUD ──
+function openAddCatalogModal() {
+  document.getElementById('catalogEditId').value = '';
+  document.getElementById('catalogName').value = '';
+  document.getElementById('catalogDesc').value = '';
+  document.getElementById('modalCatalogTitle').textContent = 'Créer un catalogue';
+  document.getElementById('catalogSubmitBtn').textContent = 'CRÉER';
+  openModal('modalAddCatalog');
+}
+
+async function openEditCatalogModal(id) {
+  closeAllMenus();
+  const data = await apiGet(`/manage/catalog/catalog/${id}/get`);
+  if (!data || data.error) { toast('Erreur', 'error'); return; }
+  document.getElementById('catalogEditId').value = data.id;
+  document.getElementById('catalogName').value = data.name;
+  document.getElementById('catalogDesc').value = data.description || '';
+  document.getElementById('modalCatalogTitle').textContent = 'Modifier le catalogue';
+  document.getElementById('catalogSubmitBtn').textContent = 'ENREGISTRER';
+  openModal('modalAddCatalog');
+}
+
+document.getElementById('formCatalog').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const id  = document.getElementById('catalogEditId').value;
+  const url = id ? `/manage/catalog/catalog/${id}` : '/manage/catalog/catalog/create';
+  const res = await apiPost(url, new FormData(this));
+  if (res.success) { toast(id ? 'Catalogue modifié ✓' : 'Catalogue créé ✓'); closeModal('modalAddCatalog'); setTimeout(() => location.reload(), 400); }
+  else toast(res.error || 'Erreur', 'error');
+});
+
+async function deleteCatalog(id) {
+  closeAllMenus();
+  if (!await confirmDelete('Supprimer ce catalogue ? Les catégories ne seront pas supprimées.')) return;
+  const res = await apiPost(`/manage/catalog/catalog/${id}/delete`, new FormData());
+  if (res.success) { toast('Catalogue supprimé'); location.reload(); }
+}
+
+// ── Category helpers ──
 function openAddCategoryModal() {
   document.getElementById('catId').value = '';
   document.getElementById('catName').value = '';
@@ -436,7 +614,7 @@ async function hardDeleteCategory(id) {
   if (res.success) { toast('Supprimée'); location.reload(); }
 }
 
-// ── Product ──
+// ── Product helpers ──
 function openAddProductModal(catId) {
   document.getElementById('prodId').value = '';
   document.getElementById('formProduct').reset();
@@ -514,7 +692,7 @@ async function downloadCertificate() {
   toast('Certificat généré ✓');
 }
 
-// ── Filter ──
+// ── Filters & menus ──
 function setFilter(f) {
   const url = new URL(window.location.href);
   url.searchParams.set('filter', f);
@@ -522,10 +700,8 @@ function setFilter(f) {
 }
 function enableReorder() {
   toast('Glissez-déposez les cartes pour réorganiser');
-  initDragDrop(document.getElementById('catalogGrid'));
+  if (typeof initDragDrop === 'function') initDragDrop(document.getElementById('catalogGrid'));
 }
-
-// ── Card menus ──
 function toggleCardMenu(menuId) {
   closeAllMenus();
   const m = document.getElementById(menuId);
@@ -535,8 +711,6 @@ function closeAllMenus() {
   document.querySelectorAll('.catalog-card-menu, .dropdown-menu').forEach(m => m.style.display = 'none');
 }
 document.addEventListener('click', closeAllMenus);
-
-// ── Search ──
 function filterCards(q) {
   q = q.toLowerCase();
   document.querySelectorAll('.catalog-card').forEach(card => {

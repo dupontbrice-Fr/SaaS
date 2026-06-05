@@ -5,9 +5,104 @@ function formatBytes(int $bytes): string {
     if ($bytes >= 1048576) return round($bytes/1048576,2).' MB';
     return round($bytes/1024,2).' KB';
 }
+$activeTab = $_GET['tab'] ?? 'screens';
 ?>
 
-<h1 class="page-title">Liste des écrans</h1>
+<h1 class="page-title">Gestion des écrans</h1>
+
+<!-- ── TABS ── -->
+<div class="tabs" style="margin-bottom:20px;">
+  <a href="?tab=screens" class="tab <?= $activeTab==='screens'?'active':'' ?>">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+    LISTE DES ÉCRANS
+    <span class="badge badge-info" style="margin-left:6px;font-size:9px;"><?= count($screens) ?></span>
+  </a>
+  <a href="?tab=licenses" class="tab <?= $activeTab==='licenses'?'active':'' ?>">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    LISTE DES LICENCES
+    <span class="badge badge-info" style="margin-left:6px;font-size:9px;"><?= count($licenses) ?></span>
+  </a>
+</div>
+
+<?php if ($activeTab === 'licenses'): ?>
+<!-- ══════════════════════════════════════════════════════════
+     TAB 2: LICENCES
+     ══════════════════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+  <span style="font-size:13px;color:var(--text-muted);">Licences générées et écrans associés</span>
+  <?php if (Auth::isAdmin()): ?>
+  <button class="btn btn-primary btn-sm" onclick="openModal('modalCreateLicense')">+ GÉNÉRER DES LICENCES</button>
+  <?php endif; ?>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>CODE DEVICE</th>
+        <th>STATUT</th>
+        <th>ÉCRAN ASSOCIÉ</th>
+        <th>CRÉÉ LE</th>
+        <?php if (Auth::isAdmin()): ?><th>ACTIONS</th><?php endif; ?>
+      </tr>
+    </thead>
+    <tbody>
+    <?php if (empty($licenses)): ?>
+      <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune licence. Générez-en une pour connecter un écran.</td></tr>
+    <?php else: ?>
+    <?php foreach ($licenses as $l): ?>
+    <tr>
+      <td>
+        <code style="background:var(--bg-input);padding:4px 10px;border-radius:4px;font-size:14px;font-weight:700;color:var(--accent);letter-spacing:2px;"><?= htmlspecialchars($l['code']) ?></code>
+        <button class="btn btn-secondary btn-sm" style="margin-left:6px;font-size:10px;padding:2px 6px;" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($l['code']) ?>').then(()=>toast('Code copié !'))">Copier</button>
+      </td>
+      <td>
+        <span class="badge <?= $l['active'] ? 'badge-success' : 'badge-danger' ?>">
+          <?= $l['active'] ? 'Active' : 'Révoquée' ?>
+        </span>
+      </td>
+      <td>
+        <?php if ($l['screen_name']): ?>
+          <span><?= htmlspecialchars($l['screen_name']) ?></span>
+          <span class="badge <?= $l['screen_status'] === 'online' ? 'badge-success' : 'badge-danger' ?>" style="margin-left:6px;font-size:9px;"><?= $l['screen_status'] === 'online' ? 'En ligne' : 'Hors ligne' ?></span>
+        <?php else: ?>
+          <span class="text-muted text-sm">Non assignée</span>
+        <?php endif; ?>
+      </td>
+      <td class="text-muted text-sm"><?= date('d/m/Y H:i', strtotime($l['created_at'])) ?></td>
+      <?php if (Auth::isAdmin()): ?>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <?php if ($l['active']): ?>
+            <button class="btn btn-secondary btn-sm" onclick="revokeLicense(<?= $l['id'] ?>)">Révoquer</button>
+          <?php else: ?>
+            <button class="btn btn-primary btn-sm" onclick="activateLicense(<?= $l['id'] ?>)">Activer</button>
+          <?php endif; ?>
+          <button class="btn btn-danger btn-sm" onclick="deleteLicense(<?= $l['id'] ?>)">Supprimer</button>
+        </div>
+      </td>
+      <?php endif; ?>
+    </tr>
+    <?php endforeach; ?>
+    <?php endif; ?>
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+  <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Comment connecter un écran ?</div>
+  <ol style="color:var(--text-muted);font-size:13px;padding-left:20px;line-height:2;">
+    <li>Installez l'APK MultiApp sur l'écran Android</li>
+    <li>Au premier lancement, l'application demande un <strong>Code Device</strong></li>
+    <li>Entrez l'un des codes générés ci-dessus</li>
+    <li>L'écran apparaît automatiquement dans "Liste des écrans" et est En ligne</li>
+  </ol>
+</div>
+
+<?php else: ?>
+<!-- ══════════════════════════════════════════════════════════
+     TAB 1: ÉCRANS
+     ══════════════════════════════════════════════════════════ -->
 
 <?php if (Auth::isAdmin()): ?>
 <div style="margin-bottom:24px;">
@@ -109,6 +204,8 @@ function formatBytes(int $bytes): string {
   <?php endforeach; ?>
 <?php endif; ?>
 </div>
+
+<?php endif; // end tab === screens ?>
 
 <!-- ══ MODALS ══════════════════════════════════════════════════ -->
 
@@ -312,6 +409,30 @@ function formatBytes(int $bytes): string {
   </div>
 </div>
 
+<!-- Modal: Create License (shown from licenses tab) -->
+<div class="modal-overlay" id="modalCreateLicense" style="display:none;">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">Générer des licences</div>
+      <button class="modal-close" onclick="closeModal('modalCreateLicense')">×</button>
+    </div>
+    <form id="formCreateLicense">
+      <div class="form-input-floating">
+        <input type="number" name="count" value="1" min="1" max="10" placeholder=" " required>
+        <label>Nombre de licences à générer</label>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">GÉNÉRER</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalCreateLicense')">ANNULER</button>
+      </div>
+    </form>
+    <div id="generatedCodes" style="display:none;margin-top:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Codes générés :</div>
+      <div id="codesList"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 let currentQrData = null;
 
@@ -447,6 +568,35 @@ function formatBytes(bytes) {
   if (bytes >= 1048576) return (bytes/1048576).toFixed(2)+' MB';
   return (bytes/1024).toFixed(2)+' KB';
 }
+
+// ── License tab actions ──
+async function revokeLicense(id) {
+  if (!await confirmDelete('Révoquer cette licence ?')) return;
+  const res = await apiPost(`/manage/licenses/${id}/revoke`, new FormData());
+  if (res.success) { toast('Licence révoquée'); location.reload(); }
+}
+async function activateLicense(id) {
+  const res = await apiPost(`/manage/licenses/${id}/activate`, new FormData());
+  if (res.success) { toast('Licence activée'); location.reload(); }
+}
+async function deleteLicense(id) {
+  if (!await confirmDelete('Supprimer cette licence ? L\'écran associé sera déconnecté.')) return;
+  const res = await apiPost(`/manage/licenses/${id}/delete`, new FormData());
+  if (res.success) { toast('Licence supprimée'); location.reload(); }
+}
+
+document.getElementById('formCreateLicense')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const res = await apiPost('/manage/licenses/create', fd);
+  if (res.success) {
+    document.getElementById('generatedCodes').style.display = 'block';
+    document.getElementById('codesList').innerHTML = res.licenses.map(l =>
+      `<div style="padding:8px;background:var(--bg-input);border-radius:6px;margin-bottom:6px;font-family:monospace;font-size:16px;letter-spacing:3px;color:var(--accent);font-weight:700;">${l.code}</div>`
+    ).join('');
+    setTimeout(() => { closeModal('modalCreateLicense'); location.reload(); }, 3000);
+  } else toast(res.error || 'Erreur', 'error');
+});
 </script>
 
 <?php include __DIR__ . '/../layout_footer.php'; ?>

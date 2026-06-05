@@ -126,12 +126,20 @@ if ($method === 'GET' && $uri === '/catalog') {
         if (!$screen) respond(['error' => 'Invalid token'], 401);
     }
 
-    $orgId = $screen['org_id'];
+    $orgId     = $screen['org_id'];
+    $catalogId = $screen['catalog_id'] ?? null;
 
-    $categories = Database::fetchAll(
-        "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
-        [$orgId]
-    );
+    if ($catalogId) {
+        $categories = Database::fetchAll(
+            "SELECT * FROM categories WHERE org_id = ? AND catalog_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
+            [$orgId, $catalogId]
+        );
+    } else {
+        $categories = Database::fetchAll(
+            "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
+            [$orgId]
+        );
+    }
 
     foreach ($categories as &$cat) {
         $cat['products'] = Database::fetchAll(

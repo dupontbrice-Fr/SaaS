@@ -9,6 +9,12 @@ class ScreenController {
              WHERE s.org_id = ? ORDER BY s.created_at DESC",
             [$orgId]
         );
+        $licenses = Database::fetchAll(
+            "SELECT l.*, s.name as screen_name, s.status as screen_status FROM licenses l
+             LEFT JOIN screens s ON s.license_id = l.id
+             WHERE l.org_id = ? ORDER BY l.created_at DESC",
+            [$orgId]
+        );
         include __DIR__ . '/../views/layout.php';
         include __DIR__ . '/../views/screens/index.php';
     }

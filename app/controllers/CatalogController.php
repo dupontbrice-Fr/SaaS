@@ -20,17 +20,66 @@ class CatalogController {
         $filter  = $_GET['filter'] ?? 'all';
         $subView = $_GET['sub']    ?? 'catalog';
         $currentCategory = null;
+        $currentCatalog  = null;
         $breadcrumb      = [];
+
+        // Catalog list view (top-level)
+        $catalogs = Database::fetchAll(
+            "SELECT c.*, (SELECT COUNT(*) FROM categories cat WHERE cat.catalog_id=c.id AND cat.archived_at IS NULL) as cat_count
+             FROM catalogs c WHERE c.org_id=? ORDER BY c.name ASC",
+            [$orgId]
+        );
+
+        // Licenses + their screens for the device panel
+        $licensesForPanel = Database::fetchAll(
+            "SELECT l.*, s.id as screen_id, s.name as screen_name, s.status as screen_status, s.catalog_id as screen_catalog_id
+             FROM licenses l LEFT JOIN screens s ON s.license_id=l.id
+             WHERE l.org_id=? AND l.active=1 ORDER BY l.code ASC",
+            [$orgId]
+        );
 
         if ($subView === 'archives') {
             $categories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC", [$orgId]);
             $products   = Database::fetchAll("SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.org_id=? AND p.archived_at IS NOT NULL ORDER BY p.archived_at DESC", [$orgId]);
         } else {
-            $categories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND parent_id IS NULL AND archived_at IS NULL ORDER BY position ASC, created_at DESC", [$orgId]);
+            $categories = [];
             $products   = [];
         }
 
         $allCategories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NULL ORDER BY name ASC", [$orgId]);
+
+        include __DIR__ . '/../views/layout.php';
+        include __DIR__ . '/../views/catalog/index.php';
+    }
+
+    public function catalogCategories(array $params = []): void {
+        Auth::require();
+        $orgId     = Auth::orgId();
+        $catalogId = (int)($params['id'] ?? 0);
+        $filter    = $_GET['filter'] ?? 'all';
+        $subView   = $_GET['sub']    ?? 'catalog';
+
+        $currentCatalog = ($catalogId > 0)
+            ? Database::fetchOne("SELECT * FROM catalogs WHERE id=? AND org_id=?", [$catalogId, $orgId])
+            : ['id' => 0, 'name' => 'Sans catalogue'];
+        if ($catalogId > 0 && !$currentCatalog) { header('Location: /manage/catalog'); exit; }
+
+        $currentCategory = null;
+        $breadcrumb      = [];
+
+        if ($subView === 'archives') {
+            $filter_cat = $catalogId > 0 ? "AND cat.catalog_id=?" : "AND cat.catalog_id IS NULL";
+            $categories = Database::fetchAll("SELECT cat.* FROM categories cat WHERE cat.org_id=? {$filter_cat} AND cat.archived_at IS NOT NULL ORDER BY cat.archived_at DESC", $catalogId > 0 ? [$orgId, $catalogId] : [$orgId]);
+            $products   = [];
+        } else {
+            $filter_cat = $catalogId > 0 ? "AND parent_id IS NULL AND catalog_id=?" : "AND parent_id IS NULL AND catalog_id IS NULL";
+            $categories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? {$filter_cat} AND archived_at IS NULL ORDER BY position ASC, created_at DESC", $catalogId > 0 ? [$orgId, $catalogId] : [$orgId]);
+            $products   = [];
+        }
+
+        $catalogs          = [];
+        $licensesForPanel  = [];
+        $allCategories     = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NULL ORDER BY name ASC", [$orgId]);
 
         include __DIR__ . '/../views/layout.php';
         include __DIR__ . '/../views/catalog/index.php';
@@ -47,6 +96,9 @@ class CatalogController {
         if (!$currentCategory) { header('Location: /manage/catalog'); exit; }
 
         $breadcrumb = $this->getBreadcrumb($categoryId, $orgId);
+        $currentCatalog  = null;
+        $catalogs        = [];
+        $licensesForPanel = [];
 
         if ($subView === 'archives') {
             $categories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND parent_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC", [$orgId, $categoryId]);
@@ -61,15 +113,82 @@ class CatalogController {
         include __DIR__ . '/../views/catalog/index.php';
     }
 
+    // ── Catalog CRUD ──────────────────────────────────────────────
+
+    public function createCatalog(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $name  = trim($_POST['name'] ?? '');
+        $desc  = trim($_POST['description'] ?? '');
+        if (empty($name)) { echo json_encode(['success' => false, 'error' => 'Nom requis']); return; }
+        $id = Database::insert("INSERT INTO catalogs (org_id, name, description) VALUES (?,?,?)", [$orgId, $name, $desc]);
+        Audit::log('created', 'catalog', $name);
+        echo json_encode(['success' => true, 'id' => $id]);
+    }
+
+    public function editCatalog(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $id    = (int)($params['id'] ?? 0);
+        $cat   = Database::fetchOne("SELECT * FROM catalogs WHERE id=? AND org_id=?", [$id, $orgId]);
+        if (!$cat) { echo json_encode(['success' => false]); return; }
+        $name = trim($_POST['name'] ?? $cat['name']);
+        $desc = trim($_POST['description'] ?? $cat['description'] ?? '');
+        Database::execute("UPDATE catalogs SET name=?, description=? WHERE id=? AND org_id=?", [$name, $desc, $id, $orgId]);
+        Audit::log('modified', 'catalog', $name);
+        echo json_encode(['success' => true]);
+    }
+
+    public function deleteCatalog(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $id    = (int)($params['id'] ?? 0);
+        $cat   = Database::fetchOne("SELECT * FROM catalogs WHERE id=? AND org_id=?", [$id, $orgId]);
+        if (!$cat) { echo json_encode(['success' => false]); return; }
+        // Detach categories (set catalog_id to NULL)
+        Database::execute("UPDATE categories SET catalog_id=NULL WHERE catalog_id=? AND org_id=?", [$id, $orgId]);
+        Database::execute("DELETE FROM catalogs WHERE id=? AND org_id=?", [$id, $orgId]);
+        Audit::log('deleted', 'catalog', $cat['name']);
+        echo json_encode(['success' => true]);
+    }
+
+    public function getCatalog(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $id    = (int)($params['id'] ?? 0);
+        echo json_encode(Database::fetchOne("SELECT * FROM catalogs WHERE id=? AND org_id=?", [$id, $orgId]) ?: ['error' => 'Not found']);
+    }
+
+    public function assignScreenCatalog(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId     = Auth::orgId();
+        $screenId  = (int)($params['screen_id'] ?? 0);
+        $catalogId = !empty($_POST['catalog_id']) ? (int)$_POST['catalog_id'] : null;
+        $screen    = Database::fetchOne("SELECT * FROM screens WHERE id=? AND org_id=?", [$screenId, $orgId]);
+        if (!$screen) { echo json_encode(['success' => false, 'error' => 'Écran introuvable']); return; }
+        if ($catalogId) {
+            $catalog = Database::fetchOne("SELECT * FROM catalogs WHERE id=? AND org_id=?", [$catalogId, $orgId]);
+            if (!$catalog) { echo json_encode(['success' => false, 'error' => 'Catalogue introuvable']); return; }
+        }
+        Database::execute("UPDATE screens SET catalog_id=? WHERE id=? AND org_id=?", [$catalogId, $screenId, $orgId]);
+        echo json_encode(['success' => true]);
+    }
+
     // ── Category CRUD ─────────────────────────────────────────────
 
     public function addCategory(array $params = []): void {
         Auth::require();
         header('Content-Type: application/json');
         $orgId    = Auth::orgId();
-        $name     = trim($_POST['name'] ?? '');
-        $parentId = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
-        $status   = $_POST['status'] ?? 'active';
+        $name      = trim($_POST['name'] ?? '');
+        $parentId  = !empty($_POST['parent_id'])  ? (int)$_POST['parent_id']  : null;
+        $catalogId = !empty($_POST['catalog_id']) ? (int)$_POST['catalog_id'] : null;
+        $status    = $_POST['status'] ?? 'active';
         $showTitle   = isset($_POST['show_title'])        ? 1 : 0;
         $viewableExt = isset($_POST['viewable_external']) ? 1 : 0;
 
@@ -84,8 +203,8 @@ class CatalogController {
 
         $maxPos = Database::fetchOne("SELECT MAX(position) AS m FROM categories WHERE org_id=? AND parent_id " . ($parentId ? "= ?" : "IS NULL"), array_filter([$orgId, $parentId]));
         $id = Database::insert(
-            "INSERT INTO categories (org_id,parent_id,name,image,status,show_title,viewable_external,position) VALUES(?,?,?,?,?,?,?,?)",
-            [$orgId, $parentId, $name, $imagePath, $status, $showTitle, $viewableExt, ($maxPos['m']??0)+1]
+            "INSERT INTO categories (org_id,catalog_id,parent_id,name,image,status,show_title,viewable_external,position) VALUES(?,?,?,?,?,?,?,?,?)",
+            [$orgId, $catalogId, $parentId, $name, $imagePath, $status, $showTitle, $viewableExt, ($maxPos['m']??0)+1]
         );
         Audit::log('created','category',$name);
         echo json_encode(['success'=>true,'id'=>$id]);

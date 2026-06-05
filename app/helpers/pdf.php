@@ -1,149 +1,272 @@
 <?php
 /**
- * Certificate PDF Generator
- * Pure PHP HTML-to-PDF using output buffering
- * Falls back to a clean HTML page if no PDF lib available
+ * Certificate PDF Generator — Pure PHP, zero dependencies
+ * Generates real binary PDF (ISO-8859-1 encoded, Helvetica built-in font)
  */
 class CertificatePDF {
 
+    private const W = 595.28;
+    private const H = 841.89;
+    private const M = 40.0;
+
+    // === PUBLIC ===
+
     public static function generate(array $product, array $history, string $orgName, string $userEmail): void {
-        $date_add = $product['created_at'] ?? date('Y-m-d H:i:s');
-        $cert_date = date('j F Y \à H\hi', strtotime($product['cert_updated_at'] ?? 'now'));
-        $add_date = date('j F Y', strtotime($date_add));
+        $cert_date = date('j F Y a H\hi', strtotime($product['cert_updated_at'] ?? 'now'));
+        $add_date  = date('j F Y', strtotime($product['created_at'] ?? 'now'));
         $mod_count = count($history);
 
-        // Check if DomPDF is available
-        $dompdf_path = __DIR__ . '/../vendor/dompdf/autoload.inc.php';
-        if (file_exists($dompdf_path)) {
-            require_once $dompdf_path;
-            self::generateWithDompdf($product, $history, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
-        } else {
-            self::generateHTML($product, $history, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
-        }
-    }
-
-    private static function generateHTML(array $product, array $history, string $orgName, string $userEmail, string $add_date, string $cert_date, int $mod_count): void {
-        $filename = 'certificat_' . preg_replace('/[^a-z0-9]/i', '-', $product['name']) . '_' . date('Ymd') . '.html';
-        header('Content-Type: text/html; charset=utf-8');
+        $filename = 'certificat_' . preg_replace('/[^a-z0-9]/i', '-', $product['name']) . '_' . date('Ymd') . '.pdf';
+        header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
-        echo self::buildHTML($product, $history, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        $pdf = new self();
+        echo $pdf->build($product, $history, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
         exit;
     }
 
-    private static function generateWithDompdf(array $product, array $history, string $orgName, string $userEmail, string $add_date, string $cert_date, int $mod_count): void {
-        // dompdf integration
-        $html = self::buildHTML($product, $history, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
-        // dompdf logic here (kept simple for shared hosting)
-        header('Content-Type: text/html; charset=utf-8');
-        echo $html;
-        exit;
-    }
-
+    // Legacy stub kept for any external reference
     public static function buildHTML(array $product, array $history, string $orgName, string $userEmail, string $add_date, string $cert_date, int $mod_count): string {
-        $hist_rows = '';
-        foreach ($history as $i => $h) {
-            $date = date('j F Y H:i', strtotime($h['created_at']));
-            $field = htmlspecialchars($h['field_name'] ?? 'Création');
-            $old = htmlspecialchars($h['old_value'] ?? '—');
-            $new_val = htmlspecialchars($h['new_value'] ?? htmlspecialchars($product['name']));
-            $user = htmlspecialchars($h['user_email']);
-            $entity = 'Produit MultiApp - ' . htmlspecialchars($product['name']);
-            $hist_rows .= "<tr>
-                <td>{$date}</td>
-                <td>{$entity}</td>
-                <td>{$user}</td>
-                <td>{$field}</td>
-                <td>{$old}</td>
-                <td>{$new_val}</td>
-            </tr>";
+        return '';
+    }
+
+    // === BUILD ===
+
+    private function build(array $product, array $history, string $orgName, string $userEmail, string $add_date, string $cert_date, int $mod_count): string {
+        $p1 = $this->page1($product, $orgName, $userEmail, $add_date, $cert_date, $mod_count);
+        $p2 = $this->page2($product, $history, $mod_count);
+        return $this->assemblePDF([$p1, $p2]);
+    }
+
+    // === PAGE 1: CERTIFICATE ===
+
+    private function page1(array $product, string $orgName, string $userEmail, string $add_date, string $cert_date, int $mod_count): string {
+        $W = self::W; $H = self::H; $m = self::M;
+        $c = '';
+
+        // Top accent bar
+        $c .= $this->rgb(107, 110, 249);
+        $c .= $this->fillRect($m, 22, $W - 2 * $m, 4);
+
+        // MULTIAPP title
+        $c .= $this->rgb(107, 110, 249);
+        $c .= $this->textCenter('MULTIAPP', 68, 'HB', 26);
+
+        // Subtitle
+        $c .= $this->rgb(51, 51, 51);
+        $c .= $this->textCenter("CERTIFICAT D'AFFICHAGE", 88, 'HB', 13);
+
+        // Badge pill
+        $bw = 112.0; $bh = 16.0; $bx = ($W - $bw) / 2.0;
+        $c .= $this->rgb(107, 110, 249);
+        $c .= $this->fillRect($bx, 95, $bw, $bh);
+        $c .= $this->rgb(255, 255, 255);
+        $c .= $this->textCenter('Borne Numerique', 107, 'HR', 9);
+
+        // Section: Product info
+        $y = 137;
+        $c .= $this->sectionTitle('INFORMATIONS DU PRODUIT', $y, $m);
+        $y += 24;
+
+        $status = $product['status'] === 'active' ? 'Actif' : 'Inactif';
+        $rows = [
+            ["Titre :",         $this->enc($product['name'])],
+            ["Date d'ajout :",  $this->enc($add_date)],
+            ["Statut :",        $status],
+            ["Modifie :",       $mod_count . ' fois'],
+        ];
+        foreach ($rows as [$lbl, $val]) {
+            $c .= $this->rgb(120, 120, 120);
+            $c .= $this->textAt($m, $y, $lbl, 'HR', 10);
+            $c .= $this->rgb(30, 30, 30);
+            $c .= $this->textAt($m + 150, $y, $val, 'HB', 10);
+            $y += 18;
         }
 
-        $product_name = htmlspecialchars($product['name']);
-        $status = $product['status'] === 'active' ? 'Actif' : 'Inactif';
+        // Signature box
+        $y += 14;
+        $boxH = 102.0;
+        $c .= $this->rgb(249, 249, 249);
+        $c .= $this->fillRect($m, $y, $W - 2 * $m, $boxH);
+        $c .= $this->strokeColor(220, 220, 220);
+        $c .= $this->strokeRect($m, $y, $W - 2 * $m, $boxH);
 
-        return '<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Certificat - ' . $product_name . '</title>
-<style>
-  @page { margin: 30px; }
-  body { font-family: Arial, sans-serif; color: #222; background: #fff; margin: 0; padding: 20px; }
-  .page { max-width: 800px; margin: 0 auto; }
-  .header { text-align: center; border-bottom: 3px solid #6b6ef9; padding-bottom: 20px; margin-bottom: 30px; }
-  .header h1 { color: #6b6ef9; font-size: 28px; margin: 0; letter-spacing: 3px; }
-  .header h2 { color: #333; font-size: 18px; margin: 5px 0 0; }
-  .badge { display: inline-block; background: #6b6ef9; color: white; padding: 4px 16px; border-radius: 20px; font-size: 12px; margin-bottom: 20px; }
-  .section-title { color: #6b6ef9; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin: 25px 0 15px; }
-  .info-table { width: 100%; border-collapse: collapse; }
-  .info-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
-  .info-table td:first-child { color: #666; width: 200px; }
-  .info-table td:last-child { font-weight: 600; }
-  .status-active { color: #22c55e; }
-  .signature-box { background: #f9f9f9; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-top: 30px; }
-  .signature-box p { margin: 5px 0; font-size: 14px; color: #666; }
-  .signature-box strong { color: #333; }
-  .cert-date { text-align: right; color: #888; font-size: 12px; margin-top: 20px; }
-  .page-break { page-break-after: always; margin: 40px 0; border-top: 2px dashed #eee; padding-top: 40px; }
-  .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .history-table th { background: #6b6ef9; color: white; padding: 8px; text-align: left; }
-  .history-table td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
-  .history-table tr:nth-child(even) { background: #f9f9f9; }
-  .history-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px; }
-  .history-subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
-</style>
-</head>
-<body>
-<div class="page">
-  <!-- Page 1: Certificate -->
-  <div class="header">
-    <h1>MULTIAPP</h1>
-    <h2>CERTIFICAT D\'AFFICHAGE</h2>
-    <br>
-    <span class="badge">Borne Numérique</span>
-  </div>
+        $c .= $this->sectionTitle('SIGNATURE', $y + 16, $m + 14);
+        $c .= $this->rgb(100, 100, 100);
+        $c .= $this->textAt($m + 14, $y + 38, 'Le document a ete ajoute par :', 'HR', 10);
+        $c .= $this->rgb(30, 30, 30);
+        $c .= $this->textAt($m + 14, $y + 56, $this->enc($userEmail), 'HB', 11);
+        $c .= $this->rgb(100, 100, 100);
+        $c .= $this->textAt($m + 14, $y + 72, 'Fait pour servir et valoir ce que de droit.', 'HR', 9);
+        $c .= $this->textAt($m + 14, $y + 87, $this->enc('Certificat genere le ' . $cert_date), 'HR', 9);
 
-  <div class="section-title">INFORMATIONS DU PRODUIT</div>
-  <table class="info-table">
-    <tr><td>Titre :</td><td>' . $product_name . '</td></tr>
-    <tr><td>Date d\'ajout :</td><td>' . $add_date . '</td></tr>
-    <tr><td>Statut :</td><td class="status-active">' . $status . '</td></tr>
-    <tr><td>depuis le :</td><td>' . $add_date . '</td></tr>
-    <tr><td>Modifié :</td><td>' . $mod_count . ' fois</td></tr>
-  </table>
+        // Footer
+        $c .= $this->rgb(180, 180, 180);
+        $c .= $this->textRight($this->enc('(c) ' . date('Y') . ' MultiApp -- ' . $orgName), $W - $m, $H - 25, 'HR', 8);
 
-  <div class="signature-box">
-    <div class="section-title">SIGNATURE</div>
-    <p>Le document a été ajouté par:</p>
-    <p><strong>' . htmlspecialchars($userEmail) . '</strong></p>
-    <p style="margin-top:15px; font-style:italic;">Fait pour servir et valoir ce que de droit.</p>
-    <p>Certificat généré le ' . $cert_date . '</p>
-  </div>
+        return $c;
+    }
 
-  <div class="cert-date">© ' . date('Y') . ' MultiApp — ' . htmlspecialchars($orgName) . '</div>
+    // === PAGE 2: HISTORY ===
 
-  <!-- Page 2: History -->
-  <div class="page-break"></div>
+    private function page2(array $product, array $history, int $mod_count): string {
+        $W = self::W; $H = self::H; $m = self::M;
+        $c = '';
 
-  <div class="history-title">Historique des modifications du produit "' . $product_name . '"</div>
-  <div class="history-subtitle">Produit "' . $product_name . '" — ' . $mod_count . ' modifications apportées au cours du temps</div>
+        $c .= $this->rgb(30, 30, 30);
+        $c .= $this->textAt($m, 50, 'Historique des modifications', 'HB', 13);
+        $prodShort = '"' . substr($this->enc($product['name']), 0, 48) . '"';
+        $c .= $this->textAt($m, 66, $prodShort, 'HB', 11);
+        $c .= $this->rgb(130, 130, 130);
+        $c .= $this->textAt($m, 82, $mod_count . ' modifications apportees au cours du temps', 'HR', 10);
 
-  <table class="history-table">
-    <thead>
-      <tr>
-        <th>Date / heure</th>
-        <th>Entité</th>
-        <th>Utilisateur</th>
-        <th>Champ</th>
-        <th>Ancienne valeur</th>
-        <th>Nouvelle valeur</th>
-      </tr>
-    </thead>
-    <tbody>' . $hist_rows . '</tbody>
-  </table>
-  <p style="text-align:center;color:#888;font-size:12px;margin-top:20px;">Certificat — historique des modifications (extrait 1–' . $mod_count . ' / ' . $mod_count . ')</p>
-</div>
-</body>
-</html>';
+        $cols  = [80, 100, 90, 65, 90, 90];
+        $heads = ['Date/heure', 'Entite', 'Utilisateur', 'Champ', 'Ancienne val.', 'Nouvelle val.'];
+
+        // Header row
+        $y = 100; $x = $m;
+        foreach ($cols as $i => $cw) {
+            $c .= $this->rgb(107, 110, 249);
+            $c .= $this->fillRect($x, $y, $cw, 15);
+            $c .= $this->rgb(255, 255, 255);
+            $c .= $this->textAt($x + 3, $y + 11, $heads[$i], 'HB', 8);
+            $x += $cw;
+        }
+        $y += 15;
+
+        // Data rows
+        foreach ($history as $i => $h) {
+            if ($y > $H - 55) break;
+            $date  = date('d/m/Y H:i', strtotime($h['created_at']));
+            $ent   = substr($this->enc($product['name']), 0, 12);
+            $user  = substr($this->enc($h['user_email'] ?? ''), 0, 18);
+            $field = substr($this->enc($h['field_name'] ?? 'Creation'), 0, 12);
+            $old   = substr($this->enc($h['old_value'] ?? '-'), 0, 16);
+            $new   = substr($this->enc($h['new_value'] ?? $product['name']), 0, 16);
+            $row   = [$date, $ent, $user, $field, $old, $new];
+            $bg    = ($i % 2 === 1) ? [245, 245, 248] : [255, 255, 255];
+
+            $x = $m;
+            foreach ($cols as $j => $cw) {
+                $c .= $this->rgb(...$bg);
+                $c .= $this->fillRect($x, $y, $cw, 13);
+                $c .= $this->rgb(30, 30, 30);
+                $c .= $this->textAt($x + 3, $y + 10, $row[$j], 'HR', 8);
+                $x += $cw;
+            }
+            $y += 13;
+        }
+
+        $c .= $this->rgb(180, 180, 180);
+        $c .= $this->textCenter("Certificat -- historique des modifications (total : {$mod_count})", $H - 25, 'HR', 8);
+
+        return $c;
+    }
+
+    // === PRIMITIVES ===
+
+    private function enc(string $s): string {
+        $s = html_entity_decode(strip_tags($s), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if (function_exists('mb_convert_encoding')) {
+            return mb_convert_encoding($s, 'ISO-8859-1', 'UTF-8');
+        }
+        return utf8_decode($s);
+    }
+
+    private function esc(string $s): string {
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $s);
+    }
+
+    private function rgb(int $r, int $g, int $b): string {
+        return sprintf("%.4f %.4f %.4f rg\n", $r / 255, $g / 255, $b / 255);
+    }
+
+    private function strokeColor(int $r, int $g, int $b): string {
+        return sprintf("%.4f %.4f %.4f RG\n", $r / 255, $g / 255, $b / 255);
+    }
+
+    private function fillRect(float $x, float $y, float $w, float $h): string {
+        $py = self::H - $y - $h;
+        return sprintf("%.2f %.2f %.2f %.2f re f\n", $x, $py, $w, $h);
+    }
+
+    private function strokeRect(float $x, float $y, float $w, float $h): string {
+        $py = self::H - $y - $h;
+        return sprintf("%.2f %.2f %.2f %.2f re S\n", $x, $py, $w, $h);
+    }
+
+    private function textAt(float $x, float $y, string $txt, string $font, float $size): string {
+        if ($txt === '') return '';
+        $py = self::H - $y;
+        return "BT /{$font} {$size} Tf " . sprintf("%.2f %.2f", $x, $py) . " Td (" . $this->esc($txt) . ") Tj ET\n";
+    }
+
+    private function textCenter(string $txt, float $y, string $font, float $size): string {
+        if ($txt === '') return '';
+        $tw = strlen($txt) * $size * 0.52;
+        return $this->textAt((self::W - $tw) / 2.0, $y, $txt, $font, $size);
+    }
+
+    private function textRight(string $txt, float $rx, float $y, string $font, float $size): string {
+        if ($txt === '') return '';
+        $tw = strlen($txt) * $size * 0.52;
+        return $this->textAt($rx - $tw, $y, $txt, $font, $size);
+    }
+
+    private function sectionTitle(string $title, float $y, float $x): string {
+        $c  = $this->rgb(107, 110, 249);
+        $c .= $this->textAt($x, $y, strtoupper($title), 'HB', 9);
+        $lineY = self::H - ($y + 4);
+        $c .= $this->strokeColor(200, 200, 200);
+        $c .= sprintf("%.2f %.2f m %.2f %.2f l S\n", $x, $lineY, self::W - $x, $lineY);
+        return $c;
+    }
+
+    // === PDF ASSEMBLY ===
+
+    private function assemblePDF(array $streams): string {
+        // Fixed object layout for 2-page document:
+        // 1: Font Helvetica Regular   2: Font Helvetica Bold
+        // 3: Page 1 stream            4: Page 2 stream
+        // 5: Page 1 object            6: Page 2 object
+        // 7: Pages dictionary         8: Catalog
+
+        $res = "<< /Font << /HR 1 0 R /HB 2 0 R >> >>";
+        $box = "[0 0 595 842]";
+
+        $parts = [
+            1 => "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+            2 => "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+        ];
+
+        foreach ($streams as $i => $stream) {
+            $parts[$i + 3] = "<< /Length " . strlen($stream) . " >>\nstream\n{$stream}endstream";
+        }
+
+        $parts[5] = "<< /Type /Page /Parent 7 0 R /MediaBox {$box} /Contents 3 0 R /Resources {$res} >>";
+        $parts[6] = "<< /Type /Page /Parent 7 0 R /MediaBox {$box} /Contents 4 0 R /Resources {$res} >>";
+        $parts[7] = "<< /Type /Pages /Kids [5 0 R 6 0 R] /Count 2 >>";
+        $parts[8] = "<< /Type /Catalog /Pages 7 0 R >>";
+
+        $out = "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n";
+        $offsets = [];
+
+        for ($n = 1; $n <= 8; $n++) {
+            $offsets[$n] = strlen($out);
+            $out .= "{$n} 0 obj\n{$parts[$n]}\nendobj\n";
+        }
+
+        $xref = strlen($out);
+        $out .= "xref\n0 9\n";
+        $out .= "0000000000 65535 f \n";
+        for ($n = 1; $n <= 8; $n++) {
+            $out .= sprintf("%010d 00000 n \n", $offsets[$n]);
+        }
+        $out .= "trailer\n<< /Size 9 /Root 8 0 R >>\n";
+        $out .= "startxref\n{$xref}\n%%EOF\n";
+
+        return $out;
     }
 }

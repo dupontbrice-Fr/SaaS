@@ -48,6 +48,12 @@ $router->get('/', function() { header('Location: /manage/catalog'); exit; });
 
 // ── Catalog ──────────────────────────────────────────────────
 $router->get('/manage/catalog', [CatalogController::class, 'index']);
+$router->get('/manage/catalog/categories/{id}', [CatalogController::class, 'catalogCategories']);
+$router->post('/manage/catalog/catalog/create', [CatalogController::class, 'createCatalog']);
+$router->get('/manage/catalog/catalog/{id}/get', [CatalogController::class, 'getCatalog']);
+$router->post('/manage/catalog/catalog/{id}', [CatalogController::class, 'editCatalog']);
+$router->post('/manage/catalog/catalog/{id}/delete', [CatalogController::class, 'deleteCatalog']);
+$router->post('/manage/catalog/assign-screen/{screen_id}', [CatalogController::class, 'assignScreenCatalog']);
 $router->get('/manage/catalog/browse/{id}', [CatalogController::class, 'browse']);
 
 // Category
@@ -155,12 +161,20 @@ $router->get('/viewer', function() {
     // Update screen last seen
     Database::execute("UPDATE screens SET last_seen = NOW() WHERE token = ?", [$token]);
 
-    // Get catalog data
-    $orgId = $screen['org_id'];
-    $categories = Database::fetchAll(
-        "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
-        [$orgId]
-    );
+    // Get catalog data (filtered by assigned catalog if set)
+    $orgId     = $screen['org_id'];
+    $catalogId = $screen['catalog_id'] ?? null;
+    if ($catalogId) {
+        $categories = Database::fetchAll(
+            "SELECT * FROM categories WHERE org_id = ? AND catalog_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
+            [$orgId, $catalogId]
+        );
+    } else {
+        $categories = Database::fetchAll(
+            "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
+            [$orgId]
+        );
+    }
     foreach ($categories as &$cat) {
         $cat['products'] = Database::fetchAll(
             "SELECT * FROM products WHERE org_id = ? AND category_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
