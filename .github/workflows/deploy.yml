@@ -20,4 +20,4 @@ jobs:
           local-dir: app/
           server-dir: /html/
           security: strict
-          port: 21
+          port: 990
