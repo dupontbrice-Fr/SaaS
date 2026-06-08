@@ -19,5 +19,3 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: app/
           server-dir: /html/
-          security: strict
-          port: 990
