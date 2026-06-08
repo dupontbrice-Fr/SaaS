@@ -35,6 +35,10 @@ if (str_starts_with($uri, '/api/v1')) {
     require_once __DIR__ . '/api/v1/index.php';
     exit;
 }
+if ($uri === '/api/update') {
+    require_once __DIR__ . '/api/update.php';
+    exit;
+}
 
 $router = new Router();
 
@@ -93,9 +97,12 @@ $router->post('/manage/screensaver/{id}/delete', [ScreensaverController::class, 
 // ── Library (Bibliothèques) ───────────────────────────────────
 $router->get('/manage/library', [LibraryController::class, 'index']);
 $router->post('/manage/library/upload', [LibraryController::class, 'upload']);
+$router->post('/manage/library/bulk-archive', [LibraryController::class, 'bulkArchive']);
+$router->post('/manage/library/bulk-restore', [LibraryController::class, 'bulkRestore']);
+$router->post('/manage/library/bulk-delete',  [LibraryController::class, 'bulkDelete']);
 $router->post('/manage/library/{id}/archive', [LibraryController::class, 'archive']);
 $router->post('/manage/library/{id}/restore', [LibraryController::class, 'restore']);
-$router->post('/manage/library/{id}/delete', [LibraryController::class, 'delete']);
+$router->post('/manage/library/{id}/delete',  [LibraryController::class, 'delete']);
 
 // ── Screens ──────────────────────────────────────────────────
 $router->get('/manage/screens', [ScreenController::class, 'index']);
