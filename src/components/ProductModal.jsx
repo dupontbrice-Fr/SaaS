@@ -4,6 +4,12 @@ import '../styles/ProductModal.css';
 export default function ProductModal({ product, onClose }) {
   if (!product) return null;
 
+  const isUrl = product.file_type === 'url' && product.url;
+
+  function handleOpenUrl() {
+    window.open(product.url, '_blank', 'noopener,noreferrer');
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -28,6 +34,11 @@ export default function ProductModal({ product, onClose }) {
             <p className="modal-ref">Réf. {product.reference}</p>
           )}
         </div>
+        {isUrl && (
+          <button className="modal-url-btn" onClick={handleOpenUrl}>
+            🌐 Ouvrir le site
+          </button>
+        )}
         <button className="modal-close-btn" onClick={onClose}>
           Fermer
         </button>

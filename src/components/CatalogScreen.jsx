@@ -22,11 +22,8 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
     screen = {},
   } = data || {};
 
-  // Flatten all products for the "Tous" tab
-  const allProducts = [
-    ...root_products,
-    ...categories.flatMap((c) => c.products || []),
-  ];
+  // Only products belonging to categories (root_products are uncategorized and not shown)
+  const allProducts = categories.flatMap((c) => c.products || []);
 
   const activeCategory = categories.find((c) => c.id === activeCatId);
   const displayedProducts =
