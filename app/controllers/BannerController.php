@@ -35,6 +35,12 @@ class BannerController {
                 "INSERT INTO media_library (org_id, filename, original_name, file_type, mime_type, file_size, path, used_in) VALUES (?,?,?,?,?,?,?,?)",
                 [$orgId, $up['filename'], $up['original_name'], Upload::mediaType($up['mime']), $up['mime'], $up['size'], $up['path'], 'banner']
             );
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) $filePath = $lib['path'];
+            }
         }
 
         $maxPos = Database::fetchOne("SELECT MAX(position) as m FROM banners WHERE org_id = ?", [$orgId]);
@@ -67,6 +73,12 @@ class BannerController {
             if ($up['success']) {
                 if ($filePath) Upload::delete($filePath);
                 $filePath = $up['path'];
+            }
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) $filePath = $lib['path'];
             }
         }
 

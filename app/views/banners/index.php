@@ -70,9 +70,10 @@ $filterColor = Auth::filterColor();
     <form id="formBanner" enctype="multipart/form-data">
       <input type="hidden" id="bannerId" name="banner_id" value="">
 
-      <div class="upload-zone" data-dropzone="bannerFile" data-preview="bannerFilePreview">
-        <input type="file" id="bannerFile" name="file" accept="image/*,video/mp4,application/pdf">
-        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER</span>
+      <input type="file" id="bannerFile" name="file" accept="image/*,video/mp4,application/pdf" style="display:none;">
+      <input type="hidden" id="bannerLibMediaId" name="library_media_id" value="">
+      <div class="upload-zone mp-trigger" id="bannerPickerZone" onclick="openBannerPicker()" style="cursor:pointer;">
+        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER · DEPUIS LA BIBLIOTHÈQUE</span>
       </div>
       <div id="bannerFilePreview" class="upload-zone-preview" style="display:none;"></div>
 
@@ -114,6 +115,36 @@ $filterColor = Auth::filterColor();
 </div>
 
 <script>
+// ── Media picker for banners ──
+(function() {
+  const zone = document.getElementById('bannerPickerZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.opacity = '0.7'; });
+  zone.addEventListener('dragleave', () => { zone.style.opacity = '1'; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.style.opacity = '1';
+    if (e.dataTransfer.files[0]) applyBannerMedia({ type: 'upload', file: e.dataTransfer.files[0] });
+  });
+})();
+
+function openBannerPicker() {
+  MediaPicker.open({ accept: 'image/*,video/mp4,application/pdf', onSelect: applyBannerMedia });
+}
+
+function applyBannerMedia({ type, file, media }) {
+  const fileInput = document.getElementById('bannerFile');
+  const libId     = document.getElementById('bannerLibMediaId');
+  const preview   = document.getElementById('bannerFilePreview');
+  if (type === 'upload') {
+    setFileInput(fileInput, file);
+    libId.value = '';
+    showFilePreview(file, preview);
+  } else {
+    fileInput.value = '';
+    libId.value = media.id;
+    showLibraryPreview(media, preview);
+  }
+}
+
 document.getElementById('formBanner').addEventListener('submit', async function(e) {
   e.preventDefault();
   const id = document.getElementById('bannerId').value;
@@ -137,6 +168,8 @@ async function editBanner(id) {
   document.getElementById('bannerUrl').value = b.url || '';
   document.getElementById('bannerModalTitle').textContent = 'Modifier la bannière';
   document.getElementById('bannerSubmitBtn').textContent = 'ENREGISTRER';
+  document.getElementById('bannerLibMediaId').value = '';
+  document.getElementById('bannerFilePreview').style.display = 'none';
   toggleBannerType(b.file_type);
   openModal('modalAddBanner');
 }

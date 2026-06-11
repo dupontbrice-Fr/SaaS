@@ -203,6 +203,166 @@ function initColorPicker() {
   picker.addEventListener('input', () => { preview.style.background = picker.value; });
 }
 
+// ── Media Picker ──────────────────────────────────────────────
+function setFileInput(inputEl, file) {
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    inputEl.files = dt.files;
+  } catch(e) {}
+}
+
+function showLibraryPreview(media, previewEl) {
+  if (!previewEl) return;
+  const icons = { image: '🖼️', video: '🎬', pdf: '📄' };
+  const icon  = icons[media.file_type] || '📄';
+  previewEl.innerHTML = `<span>${icon}</span> ${media.original_name} <span class="text-muted">(Bibliothèque)</span>`;
+  previewEl.style.display = 'flex';
+}
+
+const MediaPicker = (() => {
+  let _cb     = null;
+  let _built  = false;
+  let _curType = 'all';
+
+  function _acceptToTypes(accept) {
+    const t = [];
+    if (accept.includes('image'))       t.push('image');
+    if (accept.includes('video'))       t.push('video');
+    if (accept.includes('pdf'))         t.push('pdf');
+    return t.length ? t : ['image', 'video', 'pdf'];
+  }
+
+  function _build() {
+    _built = true;
+    const el = document.createElement('div');
+    el.id = '_mpModal';
+    el.className = 'modal-overlay';
+    el.style.display = 'none';
+    el.innerHTML = `
+      <div class="modal" style="max-width:720px;width:95vw;padding:0;overflow:hidden;">
+        <div class="modal-header" style="padding:16px 20px;">
+          <div class="modal-title">Sélectionner un média</div>
+          <button class="modal-close" onclick="MediaPicker.close()">×</button>
+        </div>
+        <div class="mp-tabs">
+          <button class="mp-tab mp-tab-active" id="_mpTabUpload" onclick="MediaPicker.showTab('upload')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Ajouter un fichier
+          </button>
+          <button class="mp-tab" id="_mpTabLib" onclick="MediaPicker.showTab('library')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Bibliothèque
+          </button>
+        </div>
+        <div id="_mpUploadPanel" style="padding:20px;">
+          <div class="upload-zone" id="_mpDropZone" style="cursor:pointer;margin:0;">
+            <input type="file" id="_mpFileInput" style="display:none;">
+            AJOUTER UN FICHIER<br>
+            <span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER</span>
+          </div>
+        </div>
+        <div id="_mpLibPanel" style="display:none;padding:16px 20px 20px;">
+          <div id="_mpLibFilters" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;"></div>
+          <div id="_mpLibGrid" class="mp-lib-grid"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+
+    const input = document.getElementById('_mpFileInput');
+    const zone  = document.getElementById('_mpDropZone');
+    zone.addEventListener('click',    () => input.click());
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.opacity = '0.7'; });
+    zone.addEventListener('dragleave',() => { zone.style.opacity = '1'; });
+    zone.addEventListener('drop',     e => {
+      e.preventDefault(); zone.style.opacity = '1';
+      if (e.dataTransfer.files[0]) _selectFile(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', () => { if (input.files[0]) _selectFile(input.files[0]); });
+    el.addEventListener('click', e => { if (e.target === el) MediaPicker.close(); });
+  }
+
+  function _selectFile(file) {
+    MediaPicker.close();
+    if (_cb) _cb({ type: 'upload', file });
+  }
+
+  function _buildFilters(types) {
+    const filtersEl = document.getElementById('_mpLibFilters');
+    filtersEl.innerHTML = '';
+    const opts = [{ key: 'all', label: 'Tout' }];
+    if (types.includes('image')) opts.push({ key: 'image', label: '🖼️ Images' });
+    if (types.includes('video')) opts.push({ key: 'video', label: '🎬 Vidéos' });
+    if (types.includes('pdf'))   opts.push({ key: 'pdf',   label: '📄 PDFs' });
+    opts.forEach(opt => {
+      const btn = document.createElement('a');
+      btn.className = 'sub-tab' + (opt.key === 'all' ? ' active' : '');
+      btn.textContent = opt.label;
+      btn.style.cursor = 'pointer';
+      btn.onclick = () => {
+        filtersEl.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _curType = opt.key;
+        _loadLibrary(opt.key);
+      };
+      filtersEl.appendChild(btn);
+    });
+  }
+
+  async function _loadLibrary(type) {
+    const grid = document.getElementById('_mpLibGrid');
+    grid.innerHTML = '<div class="mp-lib-msg">Chargement...</div>';
+    const qs   = type !== 'all' ? `?type=${type}` : '';
+    const data = await apiGet(`/manage/library/picker${qs}`);
+
+    if (!data.media || !data.media.length) {
+      grid.innerHTML = '<div class="mp-lib-msg">Aucun fichier dans la bibliothèque.</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    data.media.forEach(m => {
+      const item = document.createElement('div');
+      item.className = 'mp-lib-item';
+      item.title     = m.original_name;
+      const thumb    = m.file_type === 'image'
+        ? `<img src="/public/uploads/${m.path}" alt="" loading="lazy">`
+        : `<div class="mp-lib-item-icon">${m.file_type === 'video' ? '🎬' : '📄'}</div>`;
+      item.innerHTML = `<div class="mp-lib-item-thumb">${thumb}</div><div class="mp-lib-item-name">${m.original_name}</div>`;
+      item.onclick   = () => { MediaPicker.close(); if (_cb) _cb({ type: 'library', media: m }); };
+      grid.appendChild(item);
+    });
+  }
+
+  function open({ accept = 'image/*,video/mp4,application/pdf', onSelect }) {
+    if (!_built) _build();
+    _cb      = onSelect;
+    _curType = 'all';
+    document.getElementById('_mpFileInput').accept = accept;
+    _buildFilters(_acceptToTypes(accept));
+    MediaPicker.showTab('upload');
+    document.getElementById('_mpModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function showTab(tab) {
+    const isLib = tab === 'library';
+    document.getElementById('_mpTabUpload').className = 'mp-tab' + (isLib ? '' : ' mp-tab-active');
+    document.getElementById('_mpTabLib').className    = 'mp-tab' + (isLib ? ' mp-tab-active' : '');
+    document.getElementById('_mpUploadPanel').style.display = isLib ? 'none' : 'block';
+    document.getElementById('_mpLibPanel').style.display    = isLib ? 'block' : 'none';
+    if (isLib) _loadLibrary(_curType);
+  }
+
+  function close() {
+    const m = document.getElementById('_mpModal');
+    if (m) { m.style.display = 'none'; document.body.style.overflow = ''; }
+    const inp = document.getElementById('_mpFileInput');
+    if (inp) inp.value = '';
+  }
+
+  return { open, close, showTab };
+})();
+
 // ── Init on DOM Ready ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   initColorPicker();

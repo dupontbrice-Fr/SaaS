@@ -31,6 +31,12 @@ class ScreensaverController {
                 "INSERT INTO media_library (org_id, filename, original_name, file_type, mime_type, file_size, path, used_in) VALUES (?,?,?,?,?,?,?,?)",
                 [$orgId, $up['filename'], $up['original_name'], Upload::mediaType($up['mime']), $up['mime'], $up['size'], $up['path'], 'screensaver']
             );
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) $filePath = $lib['path'];
+            }
         }
 
         $maxPos = Database::fetchOne("SELECT MAX(position) as m FROM screensavers WHERE org_id = ?", [$orgId]);
@@ -60,6 +66,12 @@ class ScreensaverController {
         if ($fileType === 'media' && !empty($_FILES['file']['name'])) {
             $up = Upload::handle($_FILES['file'], 'screensavers', 'media');
             if ($up['success']) { if ($filePath) Upload::delete($filePath); $filePath = $up['path']; }
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) $filePath = $lib['path'];
+            }
         }
 
         Database::execute("UPDATE screensavers SET name=?, file_type=?, file_path=?, url=?, status=? WHERE id=? AND org_id=?",

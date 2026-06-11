@@ -96,6 +96,7 @@ $router->post('/manage/screensaver/{id}/delete', [ScreensaverController::class, 
 
 // ── Library (Bibliothèques) ───────────────────────────────────
 $router->get('/manage/library', [LibraryController::class, 'index']);
+$router->get('/manage/library/picker', [LibraryController::class, 'picker']);
 $router->post('/manage/library/upload', [LibraryController::class, 'upload']);
 $router->post('/manage/library/bulk-archive', [LibraryController::class, 'bulkArchive']);
 $router->post('/manage/library/bulk-restore', [LibraryController::class, 'bulkRestore']);

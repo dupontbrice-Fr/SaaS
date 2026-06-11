@@ -211,6 +211,12 @@ class CatalogController {
             $up = Upload::handle($_FILES['image'], 'categories', 'image');
             if (!$up['success']) { echo json_encode($up); return; }
             $imagePath = $up['path'];
+        } else {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ? AND file_type = 'image'", [$libId, $orgId]);
+                if ($lib) $imagePath = $lib['path'];
+            }
         }
 
         $maxPos = Database::fetchOne("SELECT MAX(position) AS m FROM categories WHERE org_id=? AND parent_id " . ($parentId ? "= ?" : "IS NULL"), array_filter([$orgId, $parentId]));
@@ -250,6 +256,12 @@ class CatalogController {
         if (!empty($_FILES['image']['name'])) {
             $up = Upload::handle($_FILES['image'], 'categories', 'image');
             if ($up['success']) { if ($imagePath) Upload::delete($imagePath); $imagePath = $up['path']; }
+        } else {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ? AND file_type = 'image'", [$libId, $orgId]);
+                if ($lib) $imagePath = $lib['path'];
+            }
         }
 
         if ($cat['name'] !== $name)     Audit::log('modified','category',$name,'Nom',$cat['name'],$name);
@@ -316,10 +328,22 @@ class CatalogController {
             $filePath = $up['path']; $fileMime = $up['mime'];
             Database::execute("INSERT INTO media_library (org_id,filename,original_name,file_type,mime_type,file_size,path,used_in) VALUES(?,?,?,?,?,?,?,?)",
                 [$orgId,$up['filename'],$up['original_name'],Upload::mediaType($up['mime']),$up['mime'],$up['size'],$up['path'],'product']);
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) { $filePath = $lib['path']; $fileMime = $lib['mime_type']; }
+            }
         }
         if (!empty($_FILES['thumbnail']['name'])) {
             $up = Upload::handle($_FILES['thumbnail'], 'products/thumbnails', 'image');
             if ($up['success']) $thumbPath = $up['path'];
+        } else {
+            $libThumbId = (int)($_POST['library_thumb_id'] ?? 0);
+            if ($libThumbId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ? AND file_type = 'image'", [$libThumbId, $orgId]);
+                if ($lib) $thumbPath = $lib['path'];
+            }
         }
 
         $maxPos = Database::fetchOne("SELECT MAX(position) AS m FROM products WHERE org_id=? AND category_id=?", [$orgId,$categoryId]);
@@ -360,10 +384,22 @@ class CatalogController {
         if ($fileType === 'media' && !empty($_FILES['file']['name'])) {
             $up = Upload::handle($_FILES['file'], 'products', 'media');
             if ($up['success']) { if ($filePath) Upload::delete($filePath); $filePath=$up['path']; $fileMime=$up['mime']; }
+        } elseif ($fileType === 'media') {
+            $libId = (int)($_POST['library_media_id'] ?? 0);
+            if ($libId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$libId, $orgId]);
+                if ($lib) { $filePath = $lib['path']; $fileMime = $lib['mime_type']; }
+            }
         }
         if (!empty($_FILES['thumbnail']['name'])) {
             $up = Upload::handle($_FILES['thumbnail'], 'products/thumbnails', 'image');
             if ($up['success']) { if ($thumbPath) Upload::delete($thumbPath); $thumbPath=$up['path']; }
+        } else {
+            $libThumbId = (int)($_POST['library_thumb_id'] ?? 0);
+            if ($libThumbId) {
+                $lib = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ? AND file_type = 'image'", [$libThumbId, $orgId]);
+                if ($lib) $thumbPath = $lib['path'];
+            }
         }
 
         foreach (['name'=>'Nom','status'=>'Statut'] as $f=>$l) {

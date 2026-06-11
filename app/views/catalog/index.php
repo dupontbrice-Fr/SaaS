@@ -393,9 +393,10 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
         </div>
       </div>
 
-      <div class="upload-zone" id="catDropZone" onclick="document.getElementById('catImage').click()" style="cursor:pointer;">
-        <input type="file" id="catImage" name="image" accept="image/jpeg,image/jpg,image/png" style="display:none;" onchange="showFilePreview(this.files[0], document.getElementById('catImagePreview'))">
-        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER, 20 MO MAX</span>
+      <input type="file" id="catImage" name="image" accept="image/jpeg,image/jpg,image/png" style="display:none;">
+      <input type="hidden" id="catLibMediaId" name="library_media_id" value="">
+      <div class="upload-zone mp-trigger" id="catPickerZone" onclick="openCatPicker()" style="cursor:pointer;">
+        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER · DEPUIS LA BIBLIOTHÈQUE</span>
       </div>
       <div id="catImagePreview" class="upload-zone-preview" style="display:none;margin-bottom:12px;"></div>
 
@@ -434,15 +435,17 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
     <form id="formProduct" enctype="multipart/form-data">
       <input type="hidden" id="prodId" name="prod_id" value="">
 
-      <div class="upload-zone" onclick="document.getElementById('prodFile').click()" style="cursor:pointer;">
-        <input type="file" id="prodFile" name="file" accept="image/*,video/mp4,application/pdf" style="display:none;" onchange="showFilePreview(this.files[0], document.getElementById('prodFilePreview'))">
-        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER, 20 MO MAX (IMAGES), 1 GO MAX (VIDÉOS), 50 MO MAX (PDFS)</span>
+      <input type="file" id="prodFile" name="file" accept="image/*,video/mp4,application/pdf" style="display:none;">
+      <input type="hidden" id="prodLibMediaId" name="library_media_id" value="">
+      <div class="upload-zone mp-trigger" id="prodFilePickerZone" onclick="openProdFilePicker()" style="cursor:pointer;">
+        AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER · DEPUIS LA BIBLIOTHÈQUE · 20 MO (IMG), 1 GO (VIDÉO), 50 MO (PDF)</span>
       </div>
       <div id="prodFilePreview" class="upload-zone-preview" style="display:none;margin-bottom:8px;"></div>
 
-      <div class="upload-zone" onclick="document.getElementById('prodThumbnail').click()" style="cursor:pointer;margin-top:8px;">
-        <input type="file" id="prodThumbnail" name="thumbnail" accept="image/*" style="display:none;" onchange="showFilePreview(this.files[0], document.getElementById('prodThumbPreview'))">
-        AJOUTER UNE MINIATURE<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER, 20 MO MAX</span>
+      <input type="file" id="prodThumbnail" name="thumbnail" accept="image/*" style="display:none;">
+      <input type="hidden" id="prodLibThumbId" name="library_thumb_id" value="">
+      <div class="upload-zone mp-trigger" id="prodThumbPickerZone" onclick="openProdThumbPicker()" style="cursor:pointer;margin-top:8px;">
+        AJOUTER UNE MINIATURE<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER · DEPUIS LA BIBLIOTHÈQUE · 20 MO MAX</span>
       </div>
       <div id="prodThumbPreview" class="upload-zone-preview" style="display:none;margin-bottom:8px;"></div>
 
@@ -516,6 +519,56 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 </style>
 
 <script>
+// ── Media pickers ──
+(function() {
+  function setupDrop(zoneId, handler) {
+    const z = document.getElementById(zoneId);
+    if (!z) return;
+    z.addEventListener('dragover', e => { e.preventDefault(); z.style.opacity = '0.7'; });
+    z.addEventListener('dragleave', () => { z.style.opacity = '1'; });
+    z.addEventListener('drop', e => {
+      e.preventDefault(); z.style.opacity = '1';
+      if (e.dataTransfer.files[0]) handler({ type: 'upload', file: e.dataTransfer.files[0] });
+    });
+  }
+  setupDrop('catPickerZone',      applyCatMedia);
+  setupDrop('prodFilePickerZone', applyProdFile);
+  setupDrop('prodThumbPickerZone',applyProdThumb);
+})();
+
+function openCatPicker() {
+  MediaPicker.open({ accept: 'image/jpeg,image/jpg,image/png', onSelect: applyCatMedia });
+}
+function applyCatMedia({ type, file, media }) {
+  const inp = document.getElementById('catImage');
+  const lid = document.getElementById('catLibMediaId');
+  const prv = document.getElementById('catImagePreview');
+  if (type === 'upload') { setFileInput(inp, file); lid.value = ''; showFilePreview(file, prv); }
+  else                   { inp.value = ''; lid.value = media.id; showLibraryPreview(media, prv); }
+}
+
+function openProdFilePicker() {
+  MediaPicker.open({ accept: 'image/*,video/mp4,application/pdf', onSelect: applyProdFile });
+}
+function applyProdFile({ type, file, media }) {
+  const inp = document.getElementById('prodFile');
+  const lid = document.getElementById('prodLibMediaId');
+  const prv = document.getElementById('prodFilePreview');
+  if (type === 'upload') { setFileInput(inp, file); lid.value = ''; showFilePreview(file, prv); }
+  else                   { inp.value = ''; lid.value = media.id; showLibraryPreview(media, prv); }
+}
+
+function openProdThumbPicker() {
+  MediaPicker.open({ accept: 'image/*', onSelect: applyProdThumb });
+}
+function applyProdThumb({ type, file, media }) {
+  const inp = document.getElementById('prodThumbnail');
+  const lid = document.getElementById('prodLibThumbId');
+  const prv = document.getElementById('prodThumbPreview');
+  if (type === 'upload') { setFileInput(inp, file); lid.value = ''; showFilePreview(file, prv); }
+  else                   { inp.value = ''; lid.value = media.id; showLibraryPreview(media, prv); }
+}
+
 // ── Device Panel ──
 function toggleDevicePanel() {
   const content = document.getElementById('devicePanelContent');
@@ -601,6 +654,7 @@ function openAddCategoryModal() {
   document.getElementById('catStatus').value = 'active';
   document.getElementById('catShowTitle').checked = true;
   document.getElementById('catViewExt').checked = true;
+  document.getElementById('catLibMediaId').value = '';
   document.getElementById('catImagePreview').style.display = 'none';
   document.getElementById('modalCatTitle').textContent = 'Ajouter une catégorie';
   document.getElementById('catSubmitBtn').textContent = 'AJOUTER';
@@ -621,6 +675,7 @@ async function openEditCategory(id) {
   document.getElementById('catStatus').value = cat.status;
   document.getElementById('catShowTitle').checked = !!parseInt(cat.show_title);
   document.getElementById('catViewExt').checked   = !!parseInt(cat.viewable_external);
+  document.getElementById('catLibMediaId').value = '';
   document.getElementById('catImagePreview').style.display = 'none';
   document.getElementById('modalCatTitle').textContent = 'Modifier la catégorie';
   document.getElementById('catSubmitBtn').textContent = 'ENREGISTRER';
@@ -660,6 +715,8 @@ async function hardDeleteCategory(id) {
 function openAddProductModal(catId) {
   document.getElementById('prodId').value = '';
   document.getElementById('formProduct').reset();
+  document.getElementById('prodLibMediaId').value = '';
+  document.getElementById('prodLibThumbId').value = '';
   document.getElementById('prodFilePreview').style.display = 'none';
   document.getElementById('prodThumbPreview').style.display = 'none';
   document.getElementById('modalProdTitle').textContent = 'Ajouter un produit';
@@ -679,6 +736,8 @@ async function openEditProduct(id) {
   document.getElementById('prodStatus').value = prod.status;
   document.getElementById('prodUrl').value = prod.url || '';
   document.getElementById('prodCategoryId').value = prod.category_id || '';
+  document.getElementById('prodLibMediaId').value = '';
+  document.getElementById('prodLibThumbId').value = '';
   document.getElementById('prodFilePreview').style.display = 'none';
   document.getElementById('prodThumbPreview').style.display = 'none';
   document.getElementById('modalProdTitle').textContent = 'Modifier le produit';

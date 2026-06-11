@@ -174,6 +174,33 @@ class LibraryController {
         echo json_encode(['success' => true]);
     }
 
+    public function picker(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId  = Auth::orgId();
+        $type   = $_GET['type']   ?? 'all';
+        $search = $_GET['search'] ?? '';
+
+        $where = "WHERE org_id = ? AND archived_at IS NULL";
+        $args  = [$orgId];
+
+        if ($type !== 'all') {
+            $where .= " AND file_type = ?";
+            $args[] = $type;
+        }
+        if (!empty($search)) {
+            $where .= " AND original_name LIKE ?";
+            $args[] = '%' . $search . '%';
+        }
+
+        $media = Database::fetchAll(
+            "SELECT id, path, original_name, file_type, mime_type, file_size FROM media_library {$where} ORDER BY created_at DESC LIMIT 200",
+            $args
+        );
+
+        echo json_encode(['media' => $media]);
+    }
+
     public function bulkDelete(array $params = []): void {
         Auth::require();
         header('Content-Type: application/json');

@@ -53,9 +53,10 @@
     <form id="formScreensaver" enctype="multipart/form-data">
       <input type="hidden" id="ssId" name="ss_id" value="">
       <div id="ssMediaZone">
-        <div class="upload-zone" data-dropzone="ssFile" data-preview="ssFilePreview">
-          <input type="file" id="ssFile" name="file" accept="image/*,video/mp4,application/pdf">
-          AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER</span>
+        <input type="file" id="ssFile" name="file" accept="image/*,video/mp4,application/pdf" style="display:none;">
+        <input type="hidden" id="ssLibMediaId" name="library_media_id" value="">
+        <div class="upload-zone mp-trigger" id="ssPickerZone" onclick="openSsPicker()" style="cursor:pointer;">
+          AJOUTER UN FICHIER<br><span style="font-weight:400;font-size:11px;">OU GLISSER DÉPOSER · DEPUIS LA BIBLIOTHÈQUE</span>
         </div>
         <div id="ssFilePreview" class="upload-zone-preview" style="display:none;"></div>
       </div>
@@ -93,6 +94,29 @@
 </div>
 
 <script>
+// ── Media picker for screensaver ──
+(function() {
+  const zone = document.getElementById('ssPickerZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.opacity = '0.7'; });
+  zone.addEventListener('dragleave', () => { zone.style.opacity = '1'; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.style.opacity = '1';
+    if (e.dataTransfer.files[0]) applySsMedia({ type: 'upload', file: e.dataTransfer.files[0] });
+  });
+})();
+
+function openSsPicker() {
+  MediaPicker.open({ accept: 'image/*,video/mp4,application/pdf', onSelect: applySsMedia });
+}
+
+function applySsMedia({ type, file, media }) {
+  const inp = document.getElementById('ssFile');
+  const lid = document.getElementById('ssLibMediaId');
+  const prv = document.getElementById('ssFilePreview');
+  if (type === 'upload') { setFileInput(inp, file); lid.value = ''; showFilePreview(file, prv); }
+  else                   { inp.value = ''; lid.value = media.id; showLibraryPreview(media, prv); }
+}
+
 document.getElementById('formScreensaver').addEventListener('submit', async function(e) {
   e.preventDefault();
   const id = document.getElementById('ssId').value;
@@ -110,6 +134,8 @@ async function editScreensaver(id) {
   document.getElementById('ssFileType').value = d.file_type;
   document.getElementById('ssStatus').value = d.status;
   document.getElementById('ssUrl').value = d.url || '';
+  document.getElementById('ssLibMediaId').value = '';
+  document.getElementById('ssFilePreview').style.display = 'none';
   toggleSsType(d.file_type);
   document.getElementById('ssModalTitle').textContent = 'Modifier l\'élément';
   document.getElementById('ssSubmitBtn').textContent = 'VALIDER';
