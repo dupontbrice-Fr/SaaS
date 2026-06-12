@@ -94,6 +94,8 @@ $router->post('/manage/screensaver/add', [ScreensaverController::class, 'add']);
 $router->get('/manage/screensaver/{id}/get', [ScreensaverController::class, 'get']);
 $router->post('/manage/screensaver/{id}', [ScreensaverController::class, 'edit']);
 $router->post('/manage/screensaver/{id}/delete', [ScreensaverController::class, 'delete']);
+$router->post('/manage/screensaver/{id}/restore', [ScreensaverController::class, 'restore']);
+$router->post('/manage/screensaver/{id}/hard-delete', [ScreensaverController::class, 'hardDelete']);
 
 // ── Library (Bibliothèques) ───────────────────────────────────
 $router->get('/manage/library', [LibraryController::class, 'index']);
@@ -203,7 +205,7 @@ $router->get('/viewer', function() {
     $settings = Database::fetchOne("SELECT * FROM settings WHERE org_id = ?", [$orgId]);
 
     $screensavers = Database::fetchAll(
-        "SELECT * FROM screensavers WHERE org_id = ? AND status = 'active' ORDER BY position ASC",
+        "SELECT * FROM screensavers WHERE org_id = ? AND status = 'active' AND archived_at IS NULL ORDER BY position ASC",
         [$orgId]
     );
     foreach ($screensavers as &$sv) {

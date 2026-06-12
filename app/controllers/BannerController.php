@@ -7,7 +7,7 @@ class BannerController {
             "SELECT b.*, c.name as catalog_name
              FROM banners b
              LEFT JOIN catalogs c ON b.catalog_id = c.id
-             WHERE b.org_id = ? ORDER BY b.position ASC, b.created_at DESC",
+             WHERE b.org_id = ? AND b.archived_at IS NULL ORDER BY b.position ASC, b.created_at DESC",
             [$orgId]
         );
         $catalogs = Database::fetchAll(
@@ -122,9 +122,8 @@ class BannerController {
         $id = (int)($params['id'] ?? 0);
         $banner = Database::fetchOne("SELECT * FROM banners WHERE id = ? AND org_id = ?", [$id, $orgId]);
         if ($banner) {
-            if ($banner['file_path']) Upload::delete($banner['file_path']);
             Audit::log('deleted', 'banner', $banner['name']);
-            Database::execute("DELETE FROM banners WHERE id = ? AND org_id = ?", [$id, $orgId]);
+            Database::execute("UPDATE banners SET archived_at = NOW() WHERE id = ? AND org_id = ?", [$id, $orgId]);
         }
         echo json_encode(['success' => true]);
     }

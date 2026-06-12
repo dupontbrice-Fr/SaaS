@@ -44,6 +44,7 @@ $totalSize   = array_sum(array_column($stats, 'total_size'));
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
     Bibliothèque
   </a>
+  <?php if (Auth::isAdmin()): ?>
   <a href="?type=<?= htmlspecialchars($filter) ?>&sub=archives" class="tab <?= $isArchive ? 'active' : '' ?>">
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
     Archives
@@ -51,6 +52,7 @@ $totalSize   = array_sum(array_column($stats, 'total_size'));
     <span style="background:var(--text-muted);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"><?= $archivedCount ?></span>
     <?php endif; ?>
   </a>
+  <?php endif; ?>
 </div>
 
 <?php if ($isArchive): ?>
@@ -88,8 +90,9 @@ $totalSize   = array_sum(array_column($stats, 'total_size'));
   <?php foreach ($media as $m):
     $canAct = Auth::isAdmin() || empty($m['admin_protected']);
     $links  = $linkageMap[$m['path']] ?? [];
-    $uploadedBy = $m['uploaded_by'] ?? null;
-    $uploadDate = !empty($m['created_at']) ? date('d/m/Y', strtotime($m['created_at'])) : '—';
+    $uploadedBy  = $m['uploaded_by'] ?? null;
+    $uploadDate  = !empty($m['created_at'])  ? date('d/m/Y', strtotime($m['created_at']))  : '—';
+    $archiveDate = !empty($m['archived_at']) ? date('d/m/Y', strtotime($m['archived_at'])) : '—';
   ?>
   <div class="library-item" data-id="<?= $m['id'] ?>">
 
@@ -121,7 +124,8 @@ $totalSize   = array_sum(array_column($stats, 'total_size'));
         <?= htmlspecialchars($m['original_name']) ?>
       </div>
       <div class="library-item-meta">
-        <?= Upload::formatSize((int)$m['file_size']) ?> · <?= $uploadDate ?>
+        <?= Upload::formatSize((int)$m['file_size']) ?> ·
+        <?= $isArchive ? ('Archivé le ' . $archiveDate) : $uploadDate ?>
       </div>
       <?php if ($uploadedBy): ?>
       <div class="library-item-uploader" title="Importé par <?= htmlspecialchars($uploadedBy) ?>">

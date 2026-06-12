@@ -6,7 +6,7 @@ class LibraryController {
         $filter  = $_GET['type']   ?? 'all';
         $search  = $_GET['search'] ?? '';
         $subView = $_GET['sub']    ?? 'library';
-        $isArchive = ($subView === 'archives');
+        $isArchive = ($subView === 'archives') && Auth::isAdmin();
         $page   = (int)($_GET['page'] ?? 1);
         $limit  = 24;
         $offset = ($page - 1) * $limit;
@@ -116,6 +116,7 @@ class LibraryController {
 
     public function restore(array $params = []): void {
         Auth::require();
+        if (!Auth::isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Accès refusé']); return; }
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $id    = (int)($params['id'] ?? 0);
@@ -125,16 +126,13 @@ class LibraryController {
 
     public function delete(array $params = []): void {
         Auth::require();
+        if (!Auth::isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Accès refusé']); return; }
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $id    = (int)($params['id'] ?? 0);
 
         $media = Database::fetchOne("SELECT * FROM media_library WHERE id = ? AND org_id = ?", [$id, $orgId]);
         if ($media) {
-            if (!empty($media['admin_protected']) && !Auth::isAdmin()) {
-                echo json_encode(['success' => false, 'error' => 'Ce contenu ne peut pas être supprimé.']);
-                return;
-            }
             Upload::delete($media['path']);
             Database::execute("DELETE FROM media_library WHERE id = ? AND org_id = ?", [$id, $orgId]);
         }
@@ -161,6 +159,7 @@ class LibraryController {
 
     public function bulkRestore(array $params = []): void {
         Auth::require();
+        if (!Auth::isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Accès refusé']); return; }
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $ids   = array_map('intval', json_decode(file_get_contents('php://input'), true)['ids'] ?? []);
@@ -203,6 +202,7 @@ class LibraryController {
 
     public function bulkDelete(array $params = []): void {
         Auth::require();
+        if (!Auth::isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Accès refusé']); return; }
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $ids   = array_map('intval', json_decode(file_get_contents('php://input'), true)['ids'] ?? []);

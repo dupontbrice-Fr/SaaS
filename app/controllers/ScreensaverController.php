@@ -4,7 +4,7 @@ class ScreensaverController {
         Auth::require();
         $orgId = Auth::orgId();
         $screensavers = Database::fetchAll(
-            "SELECT * FROM screensavers WHERE org_id = ? ORDER BY position ASC, created_at DESC",
+            "SELECT * FROM screensavers WHERE org_id = ? AND archived_at IS NULL ORDER BY position ASC, created_at DESC",
             [$orgId]
         );
         include __DIR__ . '/../views/layout.php';
@@ -94,8 +94,30 @@ class ScreensaverController {
         $id = (int)($params['id'] ?? 0);
         $ss = Database::fetchOne("SELECT * FROM screensavers WHERE id = ? AND org_id = ?", [$id, $orgId]);
         if ($ss) {
-            if ($ss['file_path']) Upload::delete($ss['file_path']);
             Audit::log('deleted', 'screensaver', $ss['name']);
+            Database::execute("UPDATE screensavers SET archived_at = NOW() WHERE id = ? AND org_id = ?", [$id, $orgId]);
+        }
+        echo json_encode(['success' => true]);
+    }
+
+    public function restore(array $params = []): void {
+        Auth::require();
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $id = (int)($params['id'] ?? 0);
+        Database::execute("UPDATE screensavers SET archived_at = NULL WHERE id = ? AND org_id = ?", [$id, $orgId]);
+        echo json_encode(['success' => true]);
+    }
+
+    public function hardDelete(array $params = []): void {
+        Auth::require();
+        if (!Auth::isAdmin()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Accès refusé']); return; }
+        header('Content-Type: application/json');
+        $orgId = Auth::orgId();
+        $id = (int)($params['id'] ?? 0);
+        $ss = Database::fetchOne("SELECT * FROM screensavers WHERE id = ? AND org_id = ?", [$id, $orgId]);
+        if ($ss) {
+            if ($ss['file_path']) Upload::delete($ss['file_path']);
             Database::execute("DELETE FROM screensavers WHERE id = ? AND org_id = ?", [$id, $orgId]);
         }
         echo json_encode(['success' => true]);

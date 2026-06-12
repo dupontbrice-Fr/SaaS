@@ -176,14 +176,14 @@ if ($method === 'GET' && $uri === '/catalog') {
 
     $settings = Database::fetchOne("SELECT * FROM settings WHERE org_id = ?", [$orgId]);
     $banners = Database::fetchAll(
-        "SELECT * FROM banners WHERE org_id = ? AND status = 'active' ORDER BY position ASC",
+        "SELECT * FROM banners WHERE org_id = ? AND status = 'active' AND archived_at IS NULL ORDER BY position ASC",
         [$orgId]
     );
     foreach ($banners as &$b) {
         if ($b['file_path']) $b['file_url'] = UPLOAD_URL . $b['file_path'];
     }
     $screensavers = Database::fetchAll(
-        "SELECT * FROM screensavers WHERE org_id = ? AND status = 'active' ORDER BY position ASC",
+        "SELECT * FROM screensavers WHERE org_id = ? AND status = 'active' AND archived_at IS NULL ORDER BY position ASC",
         [$orgId]
     );
     foreach ($screensavers as &$s) {
