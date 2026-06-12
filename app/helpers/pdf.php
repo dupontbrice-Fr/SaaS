@@ -104,7 +104,7 @@ class CertificatePDF {
 
         // Footer
         $c .= $this->rgb(180, 180, 180);
-        $c .= $this->textRight($this->enc('(c) ' . date('Y') . ' MultiApp -- ' . $orgName), $W - $m, $H - 25, 'HR', 8);
+        $c .= $this->textRight($this->enc('(c) ' . date('Y') . ' MediaPush -- ' . $orgName), $W - $m, $H - 25, 'HR', 8);
 
         return $c;
     }

@@ -1,5 +1,5 @@
 <?php
-// MultiApp Configuration
+// MediaPush Configuration
 
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'dbsaasapps196298com');
@@ -7,7 +7,7 @@ define('DB_USER', 'saasaps196298com');
 define('DB_PASS', 'mcYDdXEdYUHnKwk8Eq');
 define('DB_CHARSET', 'utf8mb4');
 
-define('APP_NAME', 'MultiApp');
+define('APP_NAME', 'MediaPush');
 define('APP_URL', 'http://saasapp.s196298.fvl-001.webo-facto.com');
 define('APP_VERSION', '1.0.0');
 

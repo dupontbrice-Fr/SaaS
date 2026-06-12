@@ -1,7 +1,7 @@
 <?php
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $user = Auth::user();
-$orgName = $user['org_name'] ?? 'MultiApp';
+$orgName = $user['org_name'] ?? 'MediaPush';
 $userInitials = strtoupper(substr($user['email'] ?? 'A', 0, 1));
 $filterColor = Auth::filterColor();
 

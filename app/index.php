@@ -1,6 +1,6 @@
 <?php
 /**
- * MultiApp - Front Controller
+ * MediaPush - Front Controller
  */
 
 // Bootstrap
@@ -167,8 +167,8 @@ $router->get('/support', function() {
     include __DIR__ . '/views/layout.php';
     echo '<div style="text-align:center;padding:60px;color:var(--text-muted);">';
     echo '<div style="font-size:48px;margin-bottom:16px;">🎯</div>';
-    echo '<h2>Support MultiApp</h2>';
-    echo '<p style="margin-top:12px;">Contactez-nous : <a href="mailto:support@multiapp.fr" style="color:var(--accent);">support@multiapp.fr</a></p>';
+    echo '<h2>Support MediaPush</h2>';
+    echo '<p style="margin-top:12px;">Contactez-nous : <a href="mailto:support@mediapush.fr" style="color:var(--accent);">support@mediapush.fr</a></p>';
     echo '</div>';
     include __DIR__ . '/views/layout_footer.php';
 });

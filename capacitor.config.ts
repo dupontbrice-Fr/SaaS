@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.saas.display',
-  appName: 'SaaS Display',
+  appName: 'MediaPush',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

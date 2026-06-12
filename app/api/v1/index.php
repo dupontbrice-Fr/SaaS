@@ -1,6 +1,6 @@
 <?php
 /**
- * MultiApp REST API v1
+ * MediaPush REST API v1
  * Used by the Android APK to connect screens
  */
 header('Content-Type: application/json');

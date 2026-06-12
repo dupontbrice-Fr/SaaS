@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MultiApp - Connexion</title>
+  <title>MediaPush - Connexion</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/public/css/app.css">
 </head>
@@ -42,7 +42,7 @@
     </form>
 
     <div style="text-align:center; margin-top:24px; font-size:12px; color:var(--text-muted);">
-      Plateforme MultiApp v<?= APP_VERSION ?> — © <?= date('Y') ?>
+      Plateforme MediaPush v<?= APP_VERSION ?> — © <?= date('Y') ?>
     </div>
   </div>
 </div>

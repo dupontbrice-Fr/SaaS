@@ -105,7 +105,7 @@ $activeTab = $_GET['tab'] ?? 'screens';
 <div style="margin-top:20px;padding:16px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
   <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Comment connecter un écran ?</div>
   <ol style="color:var(--text-muted);font-size:13px;padding-left:20px;line-height:2;">
-    <li>Installez l'APK MultiApp sur l'écran Android</li>
+    <li>Installez l'APK MediaPush sur l'écran Android</li>
     <li>Au premier lancement, l'application demande une <strong>licence</strong></li>
     <li>Entrez l'un des codes générés ci-dessus</li>
     <li>L'écran apparaît automatiquement dans "Écrans et Licences" et est En ligne</li>

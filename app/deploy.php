@@ -1,6 +1,6 @@
 <?php
 /**
- * MultiApp - Script de déploiement automatique
+ * MediaPush - Script de déploiement automatique
  *
  * INSTRUCTIONS :
  * 1. Uploadez ce fichier SEUL à la racine de votre hébergement via FTP
@@ -23,7 +23,7 @@ $success = [];
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>MultiApp - Installation</title>
+<title>MediaPush - Installation</title>
 <style>
 body { font-family:Arial,sans-serif; background:#12132a; color:#fff; padding:40px; max-width:800px; margin:0 auto; }
 h1 { color:#6b6ef9; margin-bottom:8px; }
@@ -38,7 +38,7 @@ pre { background:#0a0a1a; padding:12px; border-radius:6px; font-size:12px; overf
 </head>
 <body>
 
-<h1>🚀 MultiApp — Installation</h1>
+<h1>🚀 MediaPush — Installation</h1>
 <p style="color:#a0a3c4; margin-bottom:24px;">Assistant de déploiement automatique</p>
 
 <?php
@@ -341,13 +341,13 @@ SQL;
     echo '<p class="ok">✅ ' . $created . ' tables créées / vérifiées</p>';
 
     // Insert default data
-    $pdo->exec("INSERT IGNORE INTO organizations (id, name, slug) VALUES (1, 'MultiApp', 'multiapp')");
+    $pdo->exec("INSERT IGNORE INTO organizations (id, name, slug) VALUES (1, 'MediaPush', 'mediapush')");
     echo '<p class="ok">✅ Organisation par défaut créée</p>';
 
     // Admin user: password = Admin@2024
     $hash = password_hash('Admin@2024', PASSWORD_BCRYPT);
-    $pdo->exec("INSERT IGNORE INTO users (org_id, email, password, role) VALUES (1, 'admin@multiapp.fr', '{$hash}', 'superadmin')");
-    echo '<p class="ok">✅ Utilisateur admin créé (admin@multiapp.fr / Admin@2024)</p>';
+    $pdo->exec("INSERT IGNORE INTO users (org_id, email, password, role) VALUES (1, 'admin@mediapush.fr', '{$hash}', 'superadmin')");
+    echo '<p class="ok">✅ Utilisateur admin créé (admin@mediapush.fr / Admin@2024)</p>';
 
     $pdo->exec("INSERT IGNORE INTO settings (org_id, filter_color, screensaver_delay) VALUES (1, '#6b6ef9', 300)");
     echo '<p class="ok">✅ Paramètres initialisés</p>';
@@ -393,9 +393,9 @@ SQL;
 
     echo '<div class="card" style="border-color:#22c55e;">';
     echo '<h2 class="ok">🎉 Installation terminée !</h2>';
-    echo '<p style="margin-bottom:16px;">Votre plateforme MultiApp est prête.</p>';
+    echo '<p style="margin-bottom:16px;">Votre plateforme MediaPush est prête.</p>';
     echo '<p><strong>URL :</strong> <a href="http://saasapp.s196298.fvl-001.webo-facto.com/" style="color:#6b6ef9;">http://saasapp.s196298.fvl-001.webo-facto.com/</a></p>';
-    echo '<p><strong>Login :</strong> admin@multiapp.fr</p>';
+    echo '<p><strong>Login :</strong> admin@mediapush.fr</p>';
     echo '<p><strong>Mot de passe :</strong> Admin@2024</p>';
     echo '<br>';
     echo '<p class="err"><strong>⚠️ IMPORTANT : Supprimez ce fichier deploy.php du serveur immédiatement après !</strong></p>';

@@ -64,7 +64,7 @@ class CertificateController {
         );
 
         $org = Database::fetchOne("SELECT name FROM organizations WHERE id = ?", [$orgId]);
-        CertificatePDF::generate($product, $history, $org['name'] ?? 'MultiApp', Auth::userEmail());
+        CertificatePDF::generate($product, $history, $org['name'] ?? 'MediaPush', Auth::userEmail());
     }
 
     public function downloadZip(array $params = []): void {

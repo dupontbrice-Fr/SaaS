@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MultiApp Viewer</title>
+<title>MediaPush Viewer</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #1a1b2e; color: white; font-family: 'Inter', sans-serif; min-height: 100vh; }
@@ -42,7 +42,7 @@ body { background: #1a1b2e; color: white; font-family: 'Inter', sans-serif; min-
     <?php if (!empty($settings['logo'])): ?>
     <img src="/public/uploads/<?= htmlspecialchars($settings['logo']) ?>" style="height:40px;">
     <?php else: ?>
-    <div class="viewer-title">MultiApp</div>
+    <div class="viewer-title">MediaPush</div>
     <?php endif; ?>
     <div class="datetime-widget" id="datetime"></div>
     <?php if (!empty($settings['custom_message'])): ?>
