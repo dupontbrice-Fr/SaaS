@@ -5,7 +5,7 @@ $filterColor = Auth::filterColor();
 <h1 class="page-title">Gestion des bannières</h1>
 
 <div style="margin-bottom:20px;">
-  <button class="btn btn-primary" onclick="openModal('modalAddBanner')">
+  <button class="btn btn-primary" onclick="openAddBanner()">
     AJOUTER UNE BANNIÈRE
   </button>
 </div>
@@ -19,7 +19,7 @@ $filterColor = Auth::filterColor();
         <th>NOM</th>
         <th>STATUT</th>
         <th>TYPE</th>
-        <th>ÉCRAN</th>
+        <th>CATALOGUE</th>
         <th>ACTIONS</th>
       </tr>
     </thead>
@@ -32,7 +32,12 @@ $filterColor = Auth::filterColor();
       <td><span class="drag-handle">⠿</span></td>
       <td>
         <?php if ($b['file_path']): ?>
-          <img src="/public/uploads/<?= htmlspecialchars($b['file_path']) ?>" style="width:50px;height:35px;object-fit:cover;border-radius:4px;">
+          <?php $mime = pathinfo($b['file_path'], PATHINFO_EXTENSION); ?>
+          <?php if (in_array(strtolower($mime), ['mp4', 'webm'])): ?>
+            <div style="width:50px;height:35px;background:var(--bg-input);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">🎬</div>
+          <?php else: ?>
+            <img src="/public/uploads/<?= htmlspecialchars($b['file_path']) ?>" style="width:50px;height:35px;object-fit:cover;border-radius:4px;">
+          <?php endif; ?>
         <?php elseif ($b['url']): ?>
           <div style="width:50px;height:35px;background:var(--bg-input);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">🌐</div>
         <?php else: ?>
@@ -46,7 +51,13 @@ $filterColor = Auth::filterColor();
         </span>
       </td>
       <td><?= $b['file_type'] === 'url' ? 'URL' : 'Media' ?></td>
-      <td><span class="text-muted text-sm">—</span></td>
+      <td>
+        <?php if ($b['catalog_name']): ?>
+          <span style="font-size:13px;"><?= htmlspecialchars($b['catalog_name']) ?></span>
+        <?php else: ?>
+          <span class="text-muted text-sm">Tous les catalogues</span>
+        <?php endif; ?>
+      </td>
       <td>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-secondary btn-sm" onclick="editBanner(<?= $b['id'] ?>)">Modifier</button>
@@ -70,6 +81,13 @@ $filterColor = Auth::filterColor();
     <form id="formBanner" enctype="multipart/form-data">
       <input type="hidden" id="bannerId" name="banner_id" value="">
 
+      <!-- Prévisualisation du média actuel (visible uniquement en mode édition) -->
+      <div id="bannerCurrentMedia" style="display:none;margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">MÉDIA ACTUEL</div>
+        <div id="bannerCurrentMediaContent" style="border-radius:8px;overflow:hidden;background:var(--bg-input);max-height:180px;display:flex;align-items:center;justify-content:center;"></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Sélectionnez un nouveau fichier ci-dessous pour le remplacer.</div>
+      </div>
+
       <input type="file" id="bannerFile" name="file" accept="image/*,video/mp4,application/pdf" style="display:none;">
       <input type="hidden" id="bannerLibMediaId" name="library_media_id" value="">
       <div class="upload-zone mp-trigger" id="bannerPickerZone" onclick="openBannerPicker()" style="cursor:pointer;">
@@ -87,7 +105,7 @@ $filterColor = Auth::filterColor();
           <option value="media">Media (JPG, PNG, JPEG, MP4, PDF)</option>
           <option value="url">URL</option>
         </select>
-        <label>Type de fichier produit</label>
+        <label>Type de fichier</label>
       </div>
 
       <div id="bannerUrlField" style="display:none;">
@@ -95,7 +113,6 @@ $filterColor = Auth::filterColor();
           <input type="url" id="bannerUrl" name="url" placeholder=" ">
           <label>URL</label>
         </div>
-        <small class="text-muted">URL requise pour la bannière</small>
       </div>
 
       <div class="form-input-floating">
@@ -104,6 +121,16 @@ $filterColor = Auth::filterColor();
           <option value="inactive">Inactif</option>
         </select>
         <label>Statut</label>
+      </div>
+
+      <div class="form-input-floating">
+        <select id="bannerCatalog" name="catalog_id">
+          <option value="">Tous les catalogues (aucun filtre)</option>
+          <?php foreach ($catalogs as $cat): ?>
+          <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <label>Catalogue</label>
       </div>
 
       <div class="modal-footer">
@@ -159,18 +186,59 @@ function toggleBannerType(val) {
   document.getElementById('bannerUrlField').style.display = val === 'url' ? 'block' : 'none';
 }
 
+function resetBannerModal() {
+  document.getElementById('bannerId').value = '';
+  document.getElementById('bannerName').value = '';
+  document.getElementById('bannerFileType').value = 'media';
+  document.getElementById('bannerStatus').value = 'active';
+  document.getElementById('bannerUrl').value = '';
+  document.getElementById('bannerCatalog').value = '';
+  document.getElementById('bannerLibMediaId').value = '';
+  document.getElementById('bannerFilePreview').style.display = 'none';
+  document.getElementById('bannerCurrentMedia').style.display = 'none';
+  document.getElementById('bannerCurrentMediaContent').innerHTML = '';
+  document.getElementById('bannerModalTitle').textContent = 'Ajouter une bannière';
+  document.getElementById('bannerSubmitBtn').textContent = 'VALIDER';
+  toggleBannerType('media');
+}
+
 async function editBanner(id) {
   const b = await apiGet(`/manage/banners/${id}/get`);
+  resetBannerModal();
+
   document.getElementById('bannerId').value = b.id;
   document.getElementById('bannerName').value = b.name;
   document.getElementById('bannerFileType').value = b.file_type;
   document.getElementById('bannerStatus').value = b.status;
   document.getElementById('bannerUrl').value = b.url || '';
+  document.getElementById('bannerCatalog').value = b.catalog_id || '';
   document.getElementById('bannerModalTitle').textContent = 'Modifier la bannière';
   document.getElementById('bannerSubmitBtn').textContent = 'ENREGISTRER';
-  document.getElementById('bannerLibMediaId').value = '';
-  document.getElementById('bannerFilePreview').style.display = 'none';
   toggleBannerType(b.file_type);
+
+  // Prévisualisation du média actuel
+  if (b.file_url) {
+    const ext = b.file_url.split('.').pop().toLowerCase();
+    const contentDiv = document.getElementById('bannerCurrentMediaContent');
+    if (['mp4', 'webm'].includes(ext)) {
+      contentDiv.innerHTML = `<video src="${b.file_url}" style="max-width:100%;max-height:160px;border-radius:6px;" controls muted></video>`;
+    } else if (['pdf'].includes(ext)) {
+      contentDiv.innerHTML = `<div style="padding:20px;font-size:28px;text-align:center;">📄<br><span style="font-size:12px;color:var(--text-muted);">${b.file_url.split('/').pop()}</span></div>`;
+    } else {
+      contentDiv.innerHTML = `<img src="${b.file_url}" style="max-width:100%;max-height:160px;object-fit:contain;border-radius:6px;">`;
+    }
+    document.getElementById('bannerCurrentMedia').style.display = 'block';
+  } else if (b.file_type === 'url' && b.url) {
+    const contentDiv = document.getElementById('bannerCurrentMediaContent');
+    contentDiv.innerHTML = `<div style="padding:16px;font-size:13px;color:var(--text-muted);word-break:break-all;">🌐 ${b.url}</div>`;
+    document.getElementById('bannerCurrentMedia').style.display = 'block';
+  }
+
+  openModal('modalAddBanner');
+}
+
+function openAddBanner() {
+  resetBannerModal();
   openModal('modalAddBanner');
 }
 

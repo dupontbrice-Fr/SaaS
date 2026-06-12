@@ -4,7 +4,14 @@ class BannerController {
         Auth::require();
         $orgId = Auth::orgId();
         $banners = Database::fetchAll(
-            "SELECT * FROM banners WHERE org_id = ? ORDER BY position ASC, created_at DESC",
+            "SELECT b.*, c.name as catalog_name
+             FROM banners b
+             LEFT JOIN catalogs c ON b.catalog_id = c.id
+             WHERE b.org_id = ? ORDER BY b.position ASC, b.created_at DESC",
+            [$orgId]
+        );
+        $catalogs = Database::fetchAll(
+            "SELECT id, name FROM catalogs WHERE org_id = ? ORDER BY name ASC",
             [$orgId]
         );
         include __DIR__ . '/../views/layout.php';
@@ -16,10 +23,11 @@ class BannerController {
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
 
-        $name = trim($_POST['name'] ?? '');
-        $fileType = $_POST['file_type'] ?? 'media';
-        $status = $_POST['status'] ?? 'active';
-        $url = trim($_POST['url'] ?? '');
+        $name      = trim($_POST['name'] ?? '');
+        $fileType  = $_POST['file_type'] ?? 'media';
+        $status    = $_POST['status'] ?? 'active';
+        $url       = trim($_POST['url'] ?? '');
+        $catalogId = (isset($_POST['catalog_id']) && $_POST['catalog_id'] !== '') ? (int)$_POST['catalog_id'] : null;
 
         if (empty($name)) {
             echo json_encode(['success' => false, 'error' => 'Le titre est requis']);
@@ -45,8 +53,8 @@ class BannerController {
 
         $maxPos = Database::fetchOne("SELECT MAX(position) as m FROM banners WHERE org_id = ?", [$orgId]);
         $id = Database::insert(
-            "INSERT INTO banners (org_id, name, file_type, file_path, url, status, position) VALUES (?,?,?,?,?,?,?)",
-            [$orgId, $name, $fileType, $filePath, $url, $status, ($maxPos['m'] ?? 0) + 1]
+            "INSERT INTO banners (org_id, catalog_id, name, file_type, file_path, url, status, position) VALUES (?,?,?,?,?,?,?,?)",
+            [$orgId, $catalogId, $name, $fileType, $filePath, $url, $status, ($maxPos['m'] ?? 0) + 1]
         );
 
         Audit::log('created', 'banner', $name);
@@ -62,11 +70,12 @@ class BannerController {
         $banner = Database::fetchOne("SELECT * FROM banners WHERE id = ? AND org_id = ?", [$id, $orgId]);
         if (!$banner) { echo json_encode(['success' => false]); return; }
 
-        $name = trim($_POST['name'] ?? $banner['name']);
-        $fileType = $_POST['file_type'] ?? $banner['file_type'];
-        $status = $_POST['status'] ?? $banner['status'];
-        $url = trim($_POST['url'] ?? $banner['url'] ?? '');
-        $filePath = $banner['file_path'];
+        $name      = trim($_POST['name'] ?? $banner['name']);
+        $fileType  = $_POST['file_type'] ?? $banner['file_type'];
+        $status    = $_POST['status'] ?? $banner['status'];
+        $url       = trim($_POST['url'] ?? $banner['url'] ?? '');
+        $catalogId = (isset($_POST['catalog_id']) && $_POST['catalog_id'] !== '') ? (int)$_POST['catalog_id'] : null;
+        $filePath  = $banner['file_path'];
 
         if ($fileType === 'media' && !empty($_FILES['file']['name'])) {
             $up = Upload::handle($_FILES['file'], 'banners', 'media');
@@ -85,8 +94,8 @@ class BannerController {
         if ($banner['status'] !== $status) Audit::log('modified', 'banner', $name, 'Actif', $banner['status'], $status);
 
         Database::execute(
-            "UPDATE banners SET name=?, file_type=?, file_path=?, url=?, status=? WHERE id=? AND org_id=?",
-            [$name, $fileType, $filePath, $url, $status, $id, $orgId]
+            "UPDATE banners SET name=?, file_type=?, file_path=?, url=?, status=?, catalog_id=? WHERE id=? AND org_id=?",
+            [$name, $fileType, $filePath, $url, $status, $catalogId, $id, $orgId]
         );
         echo json_encode(['success' => true]);
     }
@@ -96,7 +105,14 @@ class BannerController {
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $id = (int)($params['id'] ?? 0);
-        echo json_encode(Database::fetchOne("SELECT * FROM banners WHERE id = ? AND org_id = ?", [$id, $orgId]));
+        $banner = Database::fetchOne(
+            "SELECT b.*, c.name as catalog_name FROM banners b LEFT JOIN catalogs c ON b.catalog_id = c.id WHERE b.id = ? AND b.org_id = ?",
+            [$id, $orgId]
+        );
+        if ($banner && $banner['file_path']) {
+            $banner['file_url'] = UPLOAD_URL . $banner['file_path'];
+        }
+        echo json_encode($banner);
     }
 
     public function delete(array $params = []): void {

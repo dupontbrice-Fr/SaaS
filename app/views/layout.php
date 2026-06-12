@@ -10,7 +10,7 @@ $navItems = [
     ['path' => '/manage/banners', 'label' => 'Bannière(s)', 'icon' => 'image'],
     ['path' => '/manage/screensaver', 'label' => 'Écran de veille', 'icon' => 'monitor'],
     ['path' => '/manage/library', 'label' => 'Bibliothèques', 'icon' => 'folder'],
-    ['path' => '/manage/screens', 'label' => 'Liste des écrans', 'icon' => 'tv'],
+    ['path' => '/manage/screens', 'label' => 'Écrans et Licences', 'icon' => 'tv'],
     ['path' => '/manage/statistics', 'label' => 'Statistiques', 'icon' => 'chart'],
     ['path' => '/manage/certificates', 'label' => 'Certificats', 'icon' => 'award'],
     ['path' => '/support', 'label' => 'Support', 'icon' => 'help'],

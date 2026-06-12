@@ -90,7 +90,7 @@
 </div>
 
 <div style="margin-top:24px;">
-  <button type="submit" class="btn btn-primary" style="padding:12px 32px;font-size:14px;">APPLIQUER</button>
+  <button type="submit" class="btn btn-primary">APPLIQUER</button>
 </div>
 
 </form>
