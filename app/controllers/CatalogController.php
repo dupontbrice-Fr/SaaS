@@ -211,6 +211,14 @@ class CatalogController {
             }
         }
 
+        // Inherit catalog_id from parent if not explicitly provided
+        if ($parentId && !$catalogId) {
+            $parent = Database::fetchOne("SELECT catalog_id FROM categories WHERE id=? AND org_id=?", [$parentId, $orgId]);
+            if ($parent && $parent['catalog_id']) {
+                $catalogId = (int)$parent['catalog_id'];
+            }
+        }
+
         $maxPos = Database::fetchOne("SELECT MAX(position) AS m FROM categories WHERE org_id=? AND parent_id " . ($parentId ? "= ?" : "IS NULL"), array_filter([$orgId, $parentId]));
         $id = Database::insert(
             "INSERT INTO categories (org_id,catalog_id,parent_id,name,image,status,show_title,viewable_external,position) VALUES(?,?,?,?,?,?,?,?,?)",

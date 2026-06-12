@@ -141,10 +141,30 @@ if ($method === 'GET' && $uri === '/catalog') {
     }
 
     if ($catalogId) {
-        $categories = Database::fetchAll(
-            "SELECT * FROM categories WHERE org_id = ? AND catalog_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
-            [$orgId, $catalogId]
+        // Fetch all active org categories, then include only those whose root ancestor belongs to the catalog
+        $allOrgCats = Database::fetchAll(
+            "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",
+            [$orgId]
         );
+        // BFS from catalog root categories to collect all descendants
+        $included = [];
+        $queue    = [];
+        foreach ($allOrgCats as $c) {
+            if ((int)$c['catalog_id'] === (int)$catalogId && !(int)$c['parent_id']) {
+                $queue[] = (int)$c['id'];
+            }
+        }
+        while (!empty($queue)) {
+            $id = array_shift($queue);
+            if (isset($included[$id])) continue;
+            $included[$id] = true;
+            foreach ($allOrgCats as $c) {
+                if ((int)$c['parent_id'] === $id) {
+                    $queue[] = (int)$c['id'];
+                }
+            }
+        }
+        $categories = array_values(array_filter($allOrgCats, fn($c) => isset($included[(int)$c['id']])));
     } else {
         $categories = Database::fetchAll(
             "SELECT * FROM categories WHERE org_id = ? AND archived_at IS NULL AND status = 'active' ORDER BY position ASC",

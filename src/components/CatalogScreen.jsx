@@ -27,13 +27,13 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
   const visibleCategories =
     currentCatId === null
       ? categories.filter((c) => !c.parent_id)
-      : categories.filter((c) => c.parent_id === currentCatId);
+      : categories.filter((c) => Number(c.parent_id) === Number(currentCatId));
 
   // Products visible at the current level
   const visibleProducts =
     currentCatId === null
       ? root_products
-      : (categories.find((c) => c.id === currentCatId)?.products ?? []);
+      : (categories.find((c) => Number(c.id) === Number(currentCatId))?.products ?? []);
 
   function navigateTo(cat) {
     setNavStack((prev) => [...prev, { id: cat.id, name: cat.name }]);
