@@ -39,14 +39,6 @@ class CatalogController {
             [$orgId]
         );
 
-        // Licenses + their screens for the device panel
-        $licensesForPanel = Database::fetchAll(
-            "SELECT l.*, s.id as screen_id, s.name as screen_name, s.status as screen_status, s.catalog_id as screen_catalog_id
-             FROM licenses l LEFT JOIN screens s ON s.license_id=l.id
-             WHERE l.org_id=? AND l.active=1 ORDER BY l.code ASC",
-            [$orgId]
-        );
-
         if ($subView === 'archives') {
             $categories = Database::fetchAll("SELECT * FROM categories WHERE org_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC", [$orgId]);
             $products   = Database::fetchAll("SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.org_id=? AND p.archived_at IS NOT NULL ORDER BY p.archived_at DESC", [$orgId]);

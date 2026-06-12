@@ -8,7 +8,7 @@
 
 <div class="card">
   <table>
-    <thead><tr><th>CODE DEVICE</th><th>STATUT</th><th>ÉCRAN ASSOCIÉ</th><th>CRÉÉ LE</th><th>ACTIONS</th></tr></thead>
+    <thead><tr><th>LICENCE</th><th>STATUT</th><th>ÉCRAN ASSOCIÉ</th><th>CRÉÉ LE</th><th>ACTIONS</th></tr></thead>
     <tbody>
     <?php if (empty($licenses)): ?>
       <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune licence. Générez-en une pour connecter un écran.</td></tr>
@@ -53,9 +53,9 @@
   <div style="font-size:13px; font-weight:600; margin-bottom:8px;">Comment connecter un écran ?</div>
   <ol style="color:var(--text-muted); font-size:13px; padding-left:20px; line-height:2;">
     <li>Installez l'APK MultiApp sur l'écran Android</li>
-    <li>Au premier lancement, l'application demande un <strong>Code Device</strong></li>
+    <li>Au premier lancement, l'application demande une <strong>licence</strong></li>
     <li>Entrez l'un des codes générés ci-dessus</li>
-    <li>L'écran apparaît automatiquement dans "Liste des écrans" et est En ligne</li>
+    <li>L'écran apparaît automatiquement dans "Écrans et Licences" et est En ligne</li>
   </ol>
 </div>
 

@@ -8,7 +8,7 @@ function formatBytes(int $bytes): string {
 $activeTab = $_GET['tab'] ?? 'screens';
 ?>
 
-<h1 class="page-title">Gestion des écrans</h1>
+<h1 class="page-title">Écrans et Licences</h1>
 
 <!-- ── TABS ── -->
 <div class="tabs" style="margin-bottom:20px;">
@@ -30,25 +30,32 @@ $activeTab = $_GET['tab'] ?? 'screens';
      ══════════════════════════════════════════════════════════ -->
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
   <span style="font-size:13px;color:var(--text-muted);">Licences générées et écrans associés</span>
-  <?php if (Auth::isAdmin()): ?>
-  <button class="btn btn-primary btn-sm" onclick="openModal('modalCreateLicense')">+ GÉNÉRER DES LICENCES</button>
-  <?php endif; ?>
+  <div style="display:flex;gap:8px;">
+    <a href="/manage/licenses/export-csv" class="btn btn-secondary btn-sm" style="text-decoration:none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      EXPORTER CSV
+    </a>
+    <?php if (Auth::isAdmin()): ?>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modalCreateLicense')">+ GÉNÉRER DES LICENCES</button>
+    <?php endif; ?>
+  </div>
 </div>
 
 <div class="card">
   <table>
     <thead>
       <tr>
-        <th>CODE DEVICE</th>
+        <th>LICENCE</th>
         <th>STATUT</th>
         <th>ÉCRAN ASSOCIÉ</th>
+        <th>CATALOGUE</th>
         <th>CRÉÉ LE</th>
         <?php if (Auth::isAdmin()): ?><th>ACTIONS</th><?php endif; ?>
       </tr>
     </thead>
     <tbody>
     <?php if (empty($licenses)): ?>
-      <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune licence. Générez-en une pour connecter un écran.</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune licence. Générez-en une pour connecter un écran.</td></tr>
     <?php else: ?>
     <?php foreach ($licenses as $l): ?>
     <tr>
@@ -57,9 +64,13 @@ $activeTab = $_GET['tab'] ?? 'screens';
         <button class="btn btn-secondary btn-sm" style="margin-left:6px;font-size:10px;padding:2px 6px;" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($l['code']) ?>').then(()=>toast('Code copié !'))">Copier</button>
       </td>
       <td>
-        <span class="badge <?= $l['active'] ? 'badge-success' : 'badge-danger' ?>">
-          <?= $l['active'] ? 'Active' : 'Révoquée' ?>
-        </span>
+        <?php if (!$l['active']): ?>
+          <span class="badge badge-danger">Révoquée</span>
+        <?php elseif ($l['paused'] ?? 0): ?>
+          <span class="badge badge-warning">En pause</span>
+        <?php else: ?>
+          <span class="badge badge-success">Active</span>
+        <?php endif; ?>
       </td>
       <td>
         <?php if ($l['screen_name']): ?>
@@ -69,14 +80,16 @@ $activeTab = $_GET['tab'] ?? 'screens';
           <span class="text-muted text-sm">Non assignée</span>
         <?php endif; ?>
       </td>
+      <td class="text-muted text-sm"><?= $l['catalog_name'] ? htmlspecialchars($l['catalog_name']) : '—' ?></td>
       <td class="text-muted text-sm"><?= date('d/m/Y H:i', strtotime($l['created_at'])) ?></td>
       <?php if (Auth::isAdmin()): ?>
       <td>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="openEditLicense(<?= $l['id'] ?>)">Modifier</button>
           <?php if ($l['active']): ?>
             <button class="btn btn-secondary btn-sm" onclick="revokeLicense(<?= $l['id'] ?>)">Révoquer</button>
           <?php else: ?>
-            <button class="btn btn-primary btn-sm" onclick="activateLicense(<?= $l['id'] ?>)">Activer</button>
+            <button class="btn btn-secondary btn-sm" onclick="activateLicense(<?= $l['id'] ?>)">Activer</button>
           <?php endif; ?>
           <button class="btn btn-danger btn-sm" onclick="deleteLicense(<?= $l['id'] ?>)">Supprimer</button>
         </div>
@@ -93,9 +106,9 @@ $activeTab = $_GET['tab'] ?? 'screens';
   <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Comment connecter un écran ?</div>
   <ol style="color:var(--text-muted);font-size:13px;padding-left:20px;line-height:2;">
     <li>Installez l'APK MultiApp sur l'écran Android</li>
-    <li>Au premier lancement, l'application demande un <strong>Code Device</strong></li>
+    <li>Au premier lancement, l'application demande une <strong>licence</strong></li>
     <li>Entrez l'un des codes générés ci-dessus</li>
-    <li>L'écran apparaît automatiquement dans "Liste des écrans" et est En ligne</li>
+    <li>L'écran apparaît automatiquement dans "Écrans et Licences" et est En ligne</li>
   </ol>
 </div>
 
@@ -168,7 +181,7 @@ $activeTab = $_GET['tab'] ?? 'screens';
 
     <div class="screen-card-info" id="screenInfo<?= $screen['id'] ?>" style="display:<?= $screen['status'] === 'online' ? 'block' : 'none' ?>;">
       <?php if ($screen['license_code']): ?>
-      <div class="screen-info-row"><span class="screen-info-label">Code Device :</span><span class="screen-info-value"><?= htmlspecialchars($screen['license_code']) ?></span></div>
+      <div class="screen-info-row"><span class="screen-info-label">Licence :</span><span class="screen-info-value"><?= htmlspecialchars($screen['license_code']) ?></span></div>
       <?php endif; ?>
       <?php if ($screen['resolution']): ?>
       <div class="screen-info-row"><span class="screen-info-label">Résolution :</span><span class="screen-info-value"><?= htmlspecialchars($screen['resolution']) ?></span></div>
@@ -409,6 +422,85 @@ $activeTab = $_GET['tab'] ?? 'screens';
   </div>
 </div>
 
+<!-- Modal: Edit License -->
+<div class="modal-overlay" id="modalEditLicense" style="display:none;">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Modifier la licence <code id="editLicCode" style="font-size:15px;letter-spacing:2px;color:var(--accent);"></code></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalEditLicense')">×</button>
+    </div>
+
+    <!-- Statut -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Statut</div>
+      <div class="form-input-floating" style="margin-bottom:0;">
+        <select id="editLicStatus">
+          <option value="active">Actif</option>
+          <option value="paused">En pause</option>
+        </select>
+        <label>Statut de la licence</label>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">En pause : la licence reste dans la liste mais l'écran ne peut plus se connecter.</div>
+    </div>
+
+    <!-- Écrans associés -->
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">Écrans associés</div>
+        <button class="btn btn-secondary btn-sm" onclick="openScreenPicker()">+ Ajouter un écran</button>
+      </div>
+      <div id="editLicScreens"></div>
+    </div>
+
+    <!-- Catalogue associé -->
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Catalogue associé</div>
+      <div class="form-input-floating" style="margin-bottom:0;">
+        <select id="editLicCatalog">
+          <option value="">Aucun catalogue (contenu par défaut)</option>
+        </select>
+        <label>Catalogue</label>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveLicense()">ENREGISTRER</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalEditLicense')">ANNULER</button>
+    </div>
+    <input type="hidden" id="editLicId">
+  </div>
+</div>
+
+<!-- Modal: Screen Picker -->
+<div class="modal-overlay" id="modalScreenPicker" style="display:none;">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-title">Sélectionner un écran</div>
+      <button class="modal-close" onclick="closeModal('modalScreenPicker')">×</button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <input type="text" class="form-input" placeholder="🔍 Rechercher un écran..." style="width:100%;" oninput="filterScreenPicker(this.value)">
+    </div>
+    <div id="screenPickerList" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Screen Reassign -->
+<div class="modal-overlay" id="modalConfirmReassign" style="display:none;">
+  <div class="modal" style="max-width:420px;text-align:center;">
+    <div class="modal-header" style="justify-content:center;border-bottom:none;padding-bottom:0;">
+      <div class="modal-title">Réassigner l'écran ?</div>
+    </div>
+    <div style="padding:12px 24px 20px;font-size:14px;color:var(--text-muted);" id="reassignMessage"></div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="confirmReassign()">Confirmer</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalConfirmReassign')">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Create License (shown from licenses tab) -->
 <div class="modal-overlay" id="modalCreateLicense" style="display:none;">
   <div class="modal" style="max-width:400px;">
@@ -567,6 +659,138 @@ function formatBytes(bytes) {
   if (bytes >= 1073741824) return (bytes/1073741824).toFixed(2)+' GB';
   if (bytes >= 1048576) return (bytes/1048576).toFixed(2)+' MB';
   return (bytes/1024).toFixed(2)+' KB';
+}
+
+// ── License: Edit modal ──
+let _editLicData = null;
+let _pendingScreenId = null;
+
+async function openEditLicense(id) {
+  const data = await apiGet(`/manage/licenses/${id}/get`);
+  if (data.error) { toast('Erreur chargement', 'error'); return; }
+  _editLicData = data;
+
+  document.getElementById('editLicId').value = data.id;
+  document.getElementById('editLicCode').textContent = data.code;
+  document.getElementById('editLicStatus').value = parseInt(data.paused) ? 'paused' : 'active';
+
+  const catSel = document.getElementById('editLicCatalog');
+  catSel.innerHTML = '<option value="">Aucun catalogue (contenu par défaut)</option>' +
+    (data.catalogs || []).map(c =>
+      `<option value="${c.id}" ${c.id == data.catalog_id ? 'selected' : ''}>${c.name}</option>`
+    ).join('');
+
+  renderEditScreens(data.screens || []);
+  openModal('modalEditLicense');
+}
+
+function renderEditScreens(screens) {
+  const div = document.getElementById('editLicScreens');
+  if (!screens.length) {
+    div.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:8px 0;">Aucun écran associé à cette licence.</p>';
+    return;
+  }
+  div.innerHTML = screens.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-input);border-radius:6px;margin-bottom:6px;">
+      <div>
+        <span style="font-size:13px;font-weight:500;">${s.name}</span>
+        <span class="badge ${s.status === 'online' ? 'badge-success' : 'badge-danger'}" style="margin-left:6px;font-size:9px;">${s.status === 'online' ? 'En ligne' : 'Hors ligne'}</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="font-size:11px;" onclick="removeScreenFromLicense(${s.id})">Retirer</button>
+    </div>
+  `).join('');
+}
+
+async function removeScreenFromLicense(screenId) {
+  const licId = document.getElementById('editLicId').value;
+  const fd = new FormData();
+  fd.append('screen_id', screenId);
+  const res = await apiPost(`/manage/licenses/${licId}/remove-screen`, fd);
+  if (res.success) {
+    _editLicData.screens = _editLicData.screens.filter(s => s.id != screenId);
+    renderEditScreens(_editLicData.screens);
+    toast('Écran retiré');
+  } else toast(res.error || 'Erreur', 'error');
+}
+
+function openScreenPicker() {
+  const licId = parseInt(document.getElementById('editLicId').value);
+  const allScreens = _editLicData.all_screens || [];
+  const list = document.getElementById('screenPickerList');
+
+  list.innerHTML = allScreens.length ? allScreens.map(s => {
+    const linkedHere = s.license_id == licId;
+    return `
+      <div class="screen-picker-item" data-name="${s.name.toLowerCase()}"
+           style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;${linkedHere ? 'opacity:.45;pointer-events:none;' : ''}"
+           onclick="selectScreen(${s.id}, '${s.name.replace(/'/g,"\\'")}', ${s.license_id || 'null'}, '${s.license_code || ''}')">
+        <div>
+          <div style="font-size:13px;font-weight:500;">${s.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${s.license_code ? 'Licence : ' + s.license_code : 'Non assigné'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge ${s.status === 'online' ? 'badge-success' : 'badge-danger'}" style="font-size:9px;">${s.status === 'online' ? 'En ligne' : 'Hors ligne'}</span>
+          ${linkedHere ? '<span style="font-size:10px;color:var(--text-muted);">Déjà lié</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('') : '<p style="padding:20px;color:var(--text-muted);text-align:center;font-size:13px;">Aucun écran disponible.</p>';
+
+  openModal('modalScreenPicker');
+}
+
+function filterScreenPicker(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.screen-picker-item').forEach(item => {
+    item.style.display = item.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
+async function selectScreen(screenId, screenName, currentLicenseId, currentLicenseCode) {
+  const licId = parseInt(document.getElementById('editLicId').value);
+  if (currentLicenseId && currentLicenseId != licId) {
+    _pendingScreenId = screenId;
+    document.getElementById('reassignMessage').innerHTML =
+      `Cet écran est déjà associé à la licence <strong>${currentLicenseCode}</strong>.<br>Voulez-vous le réassocier à la licence en cours ?`;
+    closeModal('modalScreenPicker');
+    openModal('modalConfirmReassign');
+    return;
+  }
+  closeModal('modalScreenPicker');
+  await doAddScreen(screenId, false);
+}
+
+async function confirmReassign() {
+  closeModal('modalConfirmReassign');
+  if (_pendingScreenId) await doAddScreen(_pendingScreenId, true);
+}
+
+async function doAddScreen(screenId, force) {
+  const licId = document.getElementById('editLicId').value;
+  const fd = new FormData();
+  fd.append('screen_id', screenId);
+  if (force) fd.append('force', '1');
+  const res = await apiPost(`/manage/licenses/${licId}/add-screen`, fd);
+  if (res.success) {
+    const fresh = await apiGet(`/manage/licenses/${licId}/get`);
+    _editLicData = fresh;
+    renderEditScreens(fresh.screens || []);
+    toast('Écran associé ✓');
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+async function saveLicense() {
+  const id = document.getElementById('editLicId').value;
+  const paused = document.getElementById('editLicStatus').value === 'paused' ? '1' : '0';
+  const catalogId = document.getElementById('editLicCatalog').value;
+  const fd = new FormData();
+  fd.append('paused', paused);
+  fd.append('catalog_id', catalogId);
+  const res = await apiPost(`/manage/licenses/${id}/update`, fd);
+  if (res.success) { toast('Licence mise à jour ✓'); closeModal('modalEditLicense'); location.reload(); }
+  else toast(res.error || 'Erreur', 'error');
 }
 
 // ── License tab actions ──

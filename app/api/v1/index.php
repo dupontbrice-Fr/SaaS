@@ -49,7 +49,7 @@ function getLicenseCode(): ?string {
  */
 function authenticateScreen(string $code): ?array {
     return Database::fetchOne(
-        "SELECT l.*, s.*, l.code as license_code FROM licenses l LEFT JOIN screens s ON s.license_id = l.id WHERE l.code = ? AND l.active = 1",
+        "SELECT l.*, s.*, l.code as license_code FROM licenses l LEFT JOIN screens s ON s.license_id = l.id WHERE l.code = ? AND l.active = 1 AND l.paused = 0 AND l.archived_at IS NULL",
         [$code]
     );
 }
@@ -63,11 +63,11 @@ if ($method === 'POST' && $uri === '/screen/register') {
 
     if (empty($code)) respond(['error' => 'license_code required'], 400);
 
-    $license = Database::fetchOne("SELECT * FROM licenses WHERE code = ? AND active = 1", [$code]);
+    $license = Database::fetchOne("SELECT * FROM licenses WHERE code = ? AND active = 1 AND paused = 0 AND archived_at IS NULL", [$code]);
     if (!$license) respond(['error' => 'Invalid or inactive license'], 401);
 
     // Update or create screen
-    $screen = Database::fetchOne("SELECT * FROM screens WHERE license_id = ?", [$license['id']]);
+    $screen = Database::fetchOne("SELECT * FROM screens WHERE license_id = ? AND archived_at IS NULL", [$license['id']]);
 
     $updateData = [
         'status' => 'online',
@@ -119,15 +119,26 @@ if ($method === 'POST' && $uri === '/screen/register') {
 // GET /api/v1/catalog?token=xxx - Get catalog for screen
 if ($method === 'GET' && $uri === '/catalog') {
     $token = $_GET['token'] ?? '';
-    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ? AND status != 'offline'", [$token]);
+    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ? AND status != 'offline' AND archived_at IS NULL", [$token]);
     if (!$screen) {
-        // Try demo screen
-        $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ?", [$token]);
+        // Try demo screen (offline or no license)
+        $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ? AND archived_at IS NULL", [$token]);
         if (!$screen) respond(['error' => 'Invalid token'], 401);
     }
 
-    $orgId     = $screen['org_id'];
-    $catalogId = $screen['catalog_id'] ?? null;
+    $orgId = $screen['org_id'];
+
+    // Catalog priority: license.catalog_id > screen.catalog_id (demo fallback)
+    $catalogId = null;
+    if ($screen['license_id']) {
+        $lic = Database::fetchOne(
+            "SELECT catalog_id FROM licenses WHERE id = ? AND archived_at IS NULL",
+            [$screen['license_id']]
+        );
+        $catalogId = $lic['catalog_id'] ?? null;
+    } else {
+        $catalogId = $screen['catalog_id'] ?? null;
+    }
 
     if ($catalogId) {
         $categories = Database::fetchAll(
@@ -194,7 +205,7 @@ if ($method === 'GET' && $uri === '/catalog') {
 if ($method === 'POST' && $uri === '/screen/heartbeat') {
     $body = jsonBody();
     $token = $body['token'] ?? '';
-    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ?", [$token]);
+    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ? AND archived_at IS NULL", [$token]);
     if (!$screen) respond(['error' => 'Invalid token'], 401);
 
     Database::execute(
@@ -250,7 +261,10 @@ if ($method === 'POST' && $uri === '/track') {
 if ($method === 'POST' && $uri === '/license/validate') {
     $body = jsonBody();
     $code = strtoupper(trim($body['code'] ?? ''));
-    $license = Database::fetchOne("SELECT l.*, o.name as org_name FROM licenses l JOIN organizations o ON l.org_id = o.id WHERE l.code = ? AND l.active = 1", [$code]);
+    $license = Database::fetchOne(
+        "SELECT l.*, o.name as org_name FROM licenses l JOIN organizations o ON l.org_id = o.id WHERE l.code = ? AND l.active = 1 AND l.paused = 0 AND l.archived_at IS NULL",
+        [$code]
+    );
     if (!$license) respond(['valid' => false, 'error' => 'Code invalide ou inactif'], 401);
     respond(['valid' => true, 'org_name' => $license['org_name']]);
 }

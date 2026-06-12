@@ -25,6 +25,9 @@ define('ALLOWED_PDF_TYPES', ['application/pdf']);
 define('SESSION_NAME', 'multiapp_session');
 define('CSRF_TOKEN_NAME', '_csrf');
 
+// Clé secrète pour les endpoints de maintenance (Make.com)
+define('MAINTENANCE_KEY', 'a69VYPn5qcy2FqsJC18Cu2hhqBV23cj');
+
 define('TIMEZONE', 'Europe/Paris');
 date_default_timezone_set(TIMEZONE);
 

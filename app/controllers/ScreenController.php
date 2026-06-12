@@ -6,13 +6,15 @@ class ScreenController {
         $screens = Database::fetchAll(
             "SELECT s.*, l.code as license_code FROM screens s
              LEFT JOIN licenses l ON s.license_id = l.id
-             WHERE s.org_id = ? ORDER BY s.created_at DESC",
+             WHERE s.org_id = ? AND s.archived_at IS NULL ORDER BY s.created_at DESC",
             [$orgId]
         );
         $licenses = Database::fetchAll(
-            "SELECT l.*, s.name as screen_name, s.status as screen_status FROM licenses l
-             LEFT JOIN screens s ON s.license_id = l.id
-             WHERE l.org_id = ? ORDER BY l.created_at DESC",
+            "SELECT l.*, s.name as screen_name, s.status as screen_status, c.name as catalog_name
+             FROM licenses l
+             LEFT JOIN screens s ON s.license_id = l.id AND s.archived_at IS NULL
+             LEFT JOIN catalogs c ON l.catalog_id = c.id
+             WHERE l.org_id = ? AND l.archived_at IS NULL ORDER BY l.created_at DESC",
             [$orgId]
         );
         include __DIR__ . '/../views/layout.php';
@@ -57,7 +59,11 @@ class ScreenController {
         header('Content-Type: application/json');
         $orgId = Auth::orgId();
         $id = (int)($params['id'] ?? 0);
-        Database::execute("DELETE FROM screens WHERE id = ? AND org_id = ?", [$id, $orgId]);
+        // Soft-delete : archiver (conservation 30 jours)
+        Database::execute(
+            "UPDATE screens SET archived_at = NOW(), status = 'offline' WHERE id = ? AND org_id = ?",
+            [$id, $orgId]
+        );
         echo json_encode(['success' => true]);
     }
 

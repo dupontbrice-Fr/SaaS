@@ -42,55 +42,6 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
      TOP LEVEL: Device Panel + Catalog List
      ══════════════════════════════════════════════════════════════ -->
 
-<!-- Device Code Panel -->
-<div class="card" style="margin-bottom:20px;">
-  <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;" onclick="toggleDevicePanel()">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-      <span style="font-size:14px;font-weight:600;">Attribuer un catalogue par Code Device</span>
-    </div>
-    <svg id="devicePanelArrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s;"><polyline points="18 15 12 9 6 15"/></svg>
-  </div>
-
-  <div id="devicePanelContent" style="display:none;margin-top:16px;">
-    <?php if (empty($licensesForPanel)): ?>
-      <p class="text-sm text-muted">Aucun code device actif. Générez des licences dans l'onglet Licences.</p>
-    <?php else: ?>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
-      <div>
-        <div class="form-input-floating">
-          <select id="deviceCodeSelect" onchange="loadDeviceScreens(this.value)">
-            <option value="">— Sélectionner un Code Device —</option>
-            <?php foreach ($licensesForPanel as $lic): ?>
-            <option value="<?= $lic['screen_id'] ?>" data-catalog="<?= $lic['screen_catalog_id'] ?? '' ?>">
-              <?= htmlspecialchars($lic['code']) ?>
-              <?= $lic['screen_name'] ? ' — ' . htmlspecialchars($lic['screen_name']) : ' (non assigné)' ?>
-            </option>
-            <?php endforeach; ?>
-          </select>
-          <label>Code Device</label>
-        </div>
-      </div>
-      <div id="deviceAssignZone" style="display:none;">
-        <div id="deviceScreenInfo" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <div class="form-input-floating" style="flex:1;margin-bottom:0;">
-            <select id="deviceCatalogAssign">
-              <option value="">Aucun catalogue (défaut)</option>
-              <?php foreach ($catalogs as $cat): ?>
-              <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-              <?php endforeach; ?>
-            </select>
-            <label>Catalogue</label>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="assignCatalogToDevice()" style="flex-shrink:0;">Attribuer</button>
-        </div>
-      </div>
-    </div>
-    <?php endif; ?>
-  </div>
-</div>
-
 <!-- Catalog List -->
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
   <span style="font-size:14px;font-weight:600;">Catalogues</span>
@@ -567,46 +518,6 @@ function applyProdThumb({ type, file, media }) {
   const prv = document.getElementById('prodThumbPreview');
   if (type === 'upload') { setFileInput(inp, file); lid.value = ''; showFilePreview(file, prv); }
   else                   { inp.value = ''; lid.value = media.id; showLibraryPreview(media, prv); }
-}
-
-// ── Device Panel ──
-function toggleDevicePanel() {
-  const content = document.getElementById('devicePanelContent');
-  const arrow   = document.getElementById('devicePanelArrow');
-  const open    = content.style.display === 'none';
-  content.style.display = open ? 'block' : 'none';
-  arrow.style.transform = open ? 'rotate(180deg)' : '';
-}
-
-let currentDeviceScreenId = null;
-
-function loadDeviceScreens(screenId) {
-  const zone = document.getElementById('deviceAssignZone');
-  const info = document.getElementById('deviceScreenInfo');
-  if (!screenId) { zone.style.display = 'none'; return; }
-  currentDeviceScreenId = screenId;
-
-  // Find the selected option data
-  const sel = document.getElementById('deviceCodeSelect');
-  const opt = sel.options[sel.selectedIndex];
-  zone.style.display = 'block';
-
-  // Pre-select the current catalog if set
-  const currentCatalogId = opt.getAttribute('data-catalog') || '';
-  document.getElementById('deviceCatalogAssign').value = currentCatalogId;
-
-  const screenName = opt.text.split(' — ')[1] || opt.text;
-  info.innerHTML = `<strong>Écran :</strong> ${screenName}`;
-}
-
-async function assignCatalogToDevice() {
-  if (!currentDeviceScreenId) return;
-  const catalogId = document.getElementById('deviceCatalogAssign').value;
-  const fd = new FormData();
-  fd.append('catalog_id', catalogId);
-  const res = await apiPost(`/manage/catalog/assign-screen/${currentDeviceScreenId}`, fd);
-  if (res.success) toast('Catalogue attribué ✓');
-  else toast(res.error || 'Erreur', 'error');
 }
 
 // ── Catalog CRUD ──

@@ -24,6 +24,7 @@ require_once __DIR__ . '/controllers/AuditController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
 require_once __DIR__ . '/controllers/LicenseController.php';
 require_once __DIR__ . '/controllers/UserController.php';
+require_once __DIR__ . '/controllers/MaintenanceController.php';
 
 // Session
 session_name(SESSION_NAME);
@@ -139,9 +140,17 @@ $router->post('/manage/users/{id}/delete', [UserController::class, 'delete']);
 // ── Licenses ─────────────────────────────────────────────────
 $router->get('/manage/licenses', [LicenseController::class, 'index']);
 $router->post('/manage/licenses/create', [LicenseController::class, 'create']);
+$router->get('/manage/licenses/export-csv', [LicenseController::class, 'exportCsv']);
+$router->get('/manage/licenses/{id}/get', [LicenseController::class, 'get']);
+$router->post('/manage/licenses/{id}/update', [LicenseController::class, 'update']);
+$router->post('/manage/licenses/{id}/add-screen', [LicenseController::class, 'addScreen']);
+$router->post('/manage/licenses/{id}/remove-screen', [LicenseController::class, 'removeScreen']);
 $router->post('/manage/licenses/{id}/revoke', [LicenseController::class, 'revoke']);
 $router->post('/manage/licenses/{id}/activate', [LicenseController::class, 'activate']);
 $router->post('/manage/licenses/{id}/delete', [LicenseController::class, 'delete']);
+
+// ── Maintenance (Make.com webhook) ───────────────────────────
+$router->get('/api/maintenance/purge-archives', [MaintenanceController::class, 'purgeArchives']);
 
 // ── Audit ────────────────────────────────────────────────────
 $router->get('/audit', [AuditController::class, 'index']);
@@ -165,7 +174,7 @@ $router->get('/support', function() {
 // ── Viewer (public screen viewer) ────────────────────────────
 $router->get('/viewer', function() {
     $token = $_GET['token'] ?? '';
-    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ?", [$token]);
+    $screen = Database::fetchOne("SELECT * FROM screens WHERE token = ? AND archived_at IS NULL", [$token]);
     if (!$screen) { http_response_code(404); echo '404 - Écran introuvable'; exit; }
 
     // Update screen last seen
