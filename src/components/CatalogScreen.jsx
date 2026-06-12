@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import BannerSlider from './BannerSlider.jsx';
 import ProductModal from './ProductModal.jsx';
 import { useHeartbeat } from '../hooks/useHeartbeat.js';
 import { trackClick } from '../services/api.js';
 import '../styles/CatalogScreen.css';
 
-const ALL_ID = '__all__';
-
 export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
-  const [activeCatId, setActiveCatId] = useState(ALL_ID);
+  // navStack: array of { id, name } — empty = root
+  const [navStack, setNavStack] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -22,28 +21,27 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
     screen = {},
   } = data || {};
 
-  // Only products belonging to categories (root_products are uncategorized and not shown)
-  const allProducts = categories.flatMap((c) => c.products || []);
+  const currentCatId = navStack.length > 0 ? navStack[navStack.length - 1].id : null;
 
-  const activeCategory = categories.find((c) => c.id === activeCatId);
-  const displayedProducts =
-    activeCatId === ALL_ID
-      ? allProducts
-      : (activeCategory?.products ?? []);
+  // Categories visible at the current level
+  const visibleCategories =
+    currentCatId === null
+      ? categories.filter((c) => !c.parent_id)
+      : categories.filter((c) => c.parent_id === currentCatId);
 
-  // Show "Tous" tab only if there are multiple categories or root products
-  const showAllTab = categories.length > 1 || root_products.length > 0;
+  // Products visible at the current level
+  const visibleProducts =
+    currentCatId === null
+      ? root_products
+      : (categories.find((c) => c.id === currentCatId)?.products ?? []);
 
-  // Default to first category on load
-  useEffect(() => {
-    if (categories.length > 0) {
-      setActiveCatId(categories[0].id);
-    }
-  }, [categories.length]);
-
-  function handleCategoryClick(cat) {
-    setActiveCatId(cat.id);
+  function navigateTo(cat) {
+    setNavStack((prev) => [...prev, { id: cat.id, name: cat.name }]);
     trackClick(token, 'category', cat.id, cat.name).catch(() => {});
+  }
+
+  function navigateBack() {
+    setNavStack((prev) => prev.slice(0, -1));
   }
 
   function handleProductClick(product) {
@@ -58,92 +56,121 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
   }
 
   const storeName = settings?.store_name || screen?.name || 'Catalogue';
+  const currentLevelName =
+    navStack.length > 0 ? navStack[navStack.length - 1].name : storeName;
+
+  const isEmpty = visibleCategories.length === 0 && visibleProducts.length === 0;
 
   return (
     <div className="catalog-screen">
       <header className="catalog-header">
-        <h1 className="catalog-title">{storeName}</h1>
+        <div className="header-left">
+          {navStack.length > 0 && (
+            <button className="back-btn" onClick={navigateBack} aria-label="Retour">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+          <h1 className="catalog-title">{currentLevelName}</h1>
+        </div>
         <div className="header-actions">
           <button
             className="icon-btn"
             onClick={handleRefresh}
             disabled={refreshing}
-            title="Actualiser"
+            aria-label="Actualiser"
           >
             <span className={refreshing ? 'spin' : ''}>↻</span>
           </button>
-          <button className="icon-btn logout-btn" onClick={onLogout} title="Déconnecter">
+          <button className="icon-btn logout-btn" onClick={onLogout} aria-label="Déconnecter">
             ✕
           </button>
         </div>
       </header>
 
-      {banners.length > 0 && <BannerSlider banners={banners} />}
-
-      {categories.length > 0 && (
-        <nav className="categories-nav">
-          {showAllTab && (
-            <button
-              className={`cat-btn ${activeCatId === ALL_ID ? 'active' : ''}`}
-              onClick={() => setActiveCatId(ALL_ID)}
-            >
-              Tous
-            </button>
-          )}
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              className={`cat-btn ${activeCatId === cat.id ? 'active' : ''}`}
-              onClick={() => handleCategoryClick(cat)}
-            >
-              {cat.image_url && (
-                <img src={cat.image_url} alt="" className="cat-icon" />
-              )}
-              {cat.name}
-            </button>
-          ))}
-        </nav>
+      {/* Banners only at root level */}
+      {navStack.length === 0 && banners.length > 0 && (
+        <BannerSlider banners={banners} />
       )}
 
-      <main className="products-grid">
-        {displayedProducts.length === 0 ? (
+      <main className="catalog-content">
+        {isEmpty ? (
           <div className="empty-state">
-            <p>Aucun produit disponible.</p>
+            <p>Aucun contenu disponible.</p>
           </div>
         ) : (
-          displayedProducts.map((product) => (
-            <div
-              key={product.id}
-              className="product-card"
-              onClick={() => handleProductClick(product)}
-            >
-              {product.thumbnail_url ? (
-                <img
-                  src={product.thumbnail_url}
-                  alt={product.name}
-                  className="product-thumb"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="product-thumb-placeholder">🖼</div>
-              )}
-              <div className="product-info">
-                <h3 className="product-name">{product.name}</h3>
-                {product.price && (
-                  <p className="product-price">
-                    {parseFloat(product.price).toFixed(2)} €
-                  </p>
-                )}
-                {product.description && (
-                  <p className="product-desc">{product.description}</p>
-                )}
+          <>
+            {/* Category cards */}
+            {visibleCategories.length > 0 && (
+              <div className="categories-grid">
+                {visibleCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="category-card"
+                    onClick={() => navigateTo(cat)}
+                  >
+                    {cat.image_url ? (
+                      <img
+                        src={cat.image_url}
+                        alt={cat.name}
+                        className="category-card-img"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="category-card-placeholder">
+                        {cat.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="category-card-label">{cat.name}</div>
+                    <div className="category-card-arrow">›</div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))
+            )}
+
+            {/* Product grid */}
+            {visibleProducts.length > 0 && (
+              <div className="products-grid">
+                {visibleProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="product-card"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    {product.thumbnail_url ? (
+                      <img
+                        src={product.thumbnail_url}
+                        alt={product.name}
+                        className="product-thumb"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="product-thumb-placeholder">🖼</div>
+                    )}
+                    {parseInt(product.show_title ?? 1) !== 0 && (
+                      <div className="product-info">
+                        <h3 className="product-name">{product.name}</h3>
+                        {product.price && (
+                          <p className="product-price">
+                            {parseFloat(product.price).toFixed(2)} €
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      <ProductModal
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+      />
     </div>
   );
 }
