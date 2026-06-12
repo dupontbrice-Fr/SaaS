@@ -22,6 +22,9 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
   } = data || {};
 
   const currentCatId = navStack.length > 0 ? navStack[navStack.length - 1].id : null;
+  const currentCat   = currentCatId !== null
+    ? categories.find((c) => Number(c.id) === Number(currentCatId)) ?? null
+    : null;
 
   // Categories visible at the current level
   const visibleCategories =
@@ -90,9 +93,20 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
         </div>
       </header>
 
-      {/* Banners only at root level */}
+      {/* Banners at root level */}
       {navStack.length === 0 && banners.length > 0 && (
         <BannerSlider banners={banners} />
+      )}
+
+      {/* Category image banner when navigating inside a category */}
+      {navStack.length > 0 && currentCat?.image_url && (
+        <div className="category-banner">
+          <img
+            src={currentCat.image_url}
+            alt={currentLevelName}
+            className="category-banner-img"
+          />
+        </div>
       )}
 
       <main className="catalog-content">
@@ -132,7 +146,7 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
 
             {/* Product grid */}
             {visibleProducts.length > 0 && (
-              <div className="products-grid">
+              <div className={currentCatId !== null ? 'products-grid products-grid--cat' : 'products-grid'}>
                 {visibleProducts.map((product) => (
                   <div
                     key={product.id}

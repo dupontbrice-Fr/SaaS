@@ -233,6 +233,30 @@
   color: #6c63ff;
 }
 
+/* ── Category banner (image pleine largeur en haut d'une catégorie) ── */
+.category-banner {
+  flex-shrink: 0;
+}
+
+.category-banner-img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  max-height: 220px;
+}
+
+/* ── Products grid inside a category — 4 colonnes fixes ── */
+.products-grid--cat {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 700px) {
+  .products-grid--cat {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ── Empty state ── */
 .empty-state {
   display: flex;
