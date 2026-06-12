@@ -99,8 +99,16 @@ class CatalogController {
         if (!$currentCategory) { header('Location: /manage/catalog'); exit; }
 
         $breadcrumb = $this->getBreadcrumb($categoryId, $orgId);
-        $currentCatalog  = null;
-        $catalogs        = [];
+
+        // Résoudre le catalogue depuis la catégorie racine de l'arbre courant
+        $currentCatalog = null;
+        if (!empty($currentCategory['catalog_id'])) {
+            $currentCatalog = Database::fetchOne(
+                "SELECT * FROM catalogs WHERE id=? AND org_id=?",
+                [$currentCategory['catalog_id'], $orgId]
+            ) ?: null;
+        }
+        $catalogs = [];
         $licensesForPanel = [];
 
         if ($subView === 'archives') {

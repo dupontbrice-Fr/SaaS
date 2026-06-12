@@ -109,16 +109,15 @@
   padding: 14px;
 }
 
-/* ── Category cards grid ── */
-.categories-grid {
+/* ── Unified content grid (categories + products mélangés) ── */
+.content-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  margin-bottom: 16px;
 }
 
 @media (max-width: 700px) {
-  .categories-grid {
+  .content-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -176,12 +175,6 @@
   line-height: 1;
 }
 
-/* ── Products grid ── */
-.products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-  gap: 14px;
-}
 
 .product-card {
   background: #fff;
@@ -245,17 +238,6 @@
   max-height: 220px;
 }
 
-/* ── Products grid inside a category — 4 colonnes fixes ── */
-.products-grid--cat {
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-@media (max-width: 700px) {
-  .products-grid--cat {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
 /* ── Empty state ── */
 .empty-state {

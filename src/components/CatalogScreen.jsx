@@ -22,21 +22,24 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
   } = data || {};
 
   const currentCatId = navStack.length > 0 ? navStack[navStack.length - 1].id : null;
-  const currentCat   = currentCatId !== null
+  const currentCat = currentCatId !== null
     ? categories.find((c) => Number(c.id) === Number(currentCatId)) ?? null
     : null;
 
-  // Categories visible at the current level
-  const visibleCategories =
-    currentCatId === null
+  // Merged + position-sorted items at the current navigation level
+  const visibleItems = (() => {
+    const cats = (currentCatId === null
       ? categories.filter((c) => !c.parent_id)
-      : categories.filter((c) => Number(c.parent_id) === Number(currentCatId));
+      : categories.filter((c) => Number(c.parent_id) === Number(currentCatId))
+    ).map((c) => ({ ...c, _type: 'category', _pos: Number(c.position) || 0 }));
 
-  // Products visible at the current level
-  const visibleProducts =
-    currentCatId === null
+    const prods = (currentCatId === null
       ? root_products
-      : (categories.find((c) => Number(c.id) === Number(currentCatId))?.products ?? []);
+      : (currentCat?.products ?? [])
+    ).map((p) => ({ ...p, _type: 'product', _pos: Number(p.position) || 0 }));
+
+    return [...cats, ...prods].sort((a, b) => a._pos - b._pos);
+  })();
 
   function navigateTo(cat) {
     setNavStack((prev) => [...prev, { id: cat.id, name: cat.name }]);
@@ -62,7 +65,7 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
   const currentLevelName =
     navStack.length > 0 ? navStack[navStack.length - 1].name : storeName;
 
-  const isEmpty = visibleCategories.length === 0 && visibleProducts.length === 0;
+  const isEmpty = visibleItems.length === 0;
 
   return (
     <div className="catalog-screen">
@@ -115,69 +118,59 @@ export default function CatalogScreen({ token, data, onLogout, onRefresh }) {
             <p>Aucun contenu disponible.</p>
           </div>
         ) : (
-          <>
-            {/* Category cards */}
-            {visibleCategories.length > 0 && (
-              <div className="categories-grid">
-                {visibleCategories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="category-card"
-                    onClick={() => navigateTo(cat)}
-                  >
-                    {cat.image_url ? (
-                      <img
-                        src={cat.image_url}
-                        alt={cat.name}
-                        className="category-card-img"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="category-card-placeholder">
-                        {cat.name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="category-card-label">{cat.name}</div>
-                    <div className="category-card-arrow">›</div>
-                  </div>
-                ))}
-              </div>
+          <div className="content-grid">
+            {visibleItems.map((item) =>
+              item._type === 'category' ? (
+                <div
+                  key={`cat-${item.id}`}
+                  className="category-card"
+                  onClick={() => navigateTo(item)}
+                >
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="category-card-img"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="category-card-placeholder">
+                      {item.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="category-card-label">{item.name}</div>
+                  <div className="category-card-arrow">›</div>
+                </div>
+              ) : (
+                <div
+                  key={`prod-${item.id}`}
+                  className="product-card"
+                  onClick={() => handleProductClick(item)}
+                >
+                  {item.thumbnail_url ? (
+                    <img
+                      src={item.thumbnail_url}
+                      alt={item.name}
+                      className="product-thumb"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="product-thumb-placeholder">🖼</div>
+                  )}
+                  {parseInt(item.show_title ?? 1) !== 0 && (
+                    <div className="product-info">
+                      <h3 className="product-name">{item.name}</h3>
+                      {item.price && (
+                        <p className="product-price">
+                          {parseFloat(item.price).toFixed(2)} €
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
             )}
-
-            {/* Product grid */}
-            {visibleProducts.length > 0 && (
-              <div className={currentCatId !== null ? 'products-grid products-grid--cat' : 'products-grid'}>
-                {visibleProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="product-card"
-                    onClick={() => handleProductClick(product)}
-                  >
-                    {product.thumbnail_url ? (
-                      <img
-                        src={product.thumbnail_url}
-                        alt={product.name}
-                        className="product-thumb"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="product-thumb-placeholder">🖼</div>
-                    )}
-                    {parseInt(product.show_title ?? 1) !== 0 && (
-                      <div className="product-info">
-                        <h3 className="product-name">{product.name}</h3>
-                        {product.price && (
-                          <p className="product-price">
-                            {parseFloat(product.price).toFixed(2)} €
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          </div>
         )}
       </main>
 

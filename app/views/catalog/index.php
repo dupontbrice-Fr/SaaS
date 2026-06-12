@@ -174,16 +174,10 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
   <?php if ($filter !== 'products'): ?>
-  <button class="btn btn-primary" onclick="openAddCategoryModal()">
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-    + CATÉGORIE
-  </button>
+  <button class="btn btn-primary" onclick="openAddCategoryModal()">+ CATÉGORIE</button>
   <?php endif; ?>
   <?php if ($insideCategory && $filter !== 'all' || $insideCategory): ?>
-  <button class="btn btn-primary" onclick="openAddProductModal(<?= $currentCatId ?? 'null' ?>)">
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-    + PRODUIT
-  </button>
+  <button class="btn btn-primary" onclick="openAddProductModal(<?= $currentCatId ?? 'null' ?>)">+ PRODUIT</button>
   <?php endif; ?>
   <div style="flex:1;"></div>
   <input type="text" class="form-input" placeholder="🔍 Rechercher..." style="width:220px;" oninput="filterCards(this.value)">
@@ -205,14 +199,31 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
 
 <div id="catalogGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;">
 
-  <?php if ($filter !== 'products'): ?>
-  <?php foreach ($categories as $i => $cat): ?>
+<?php
+// Fusion catégories + produits triés par position (grille mélangée)
+$gridItems = [];
+if ($filter !== 'products') {
+    foreach ($categories as $i => $cat) {
+        $gridItems[] = ['type' => 'category', 'data' => $cat, 'colorIdx' => $i, 'pos' => (int)($cat['position'] ?? 0)];
+    }
+}
+if ($filter !== 'all' || $insideCategory) {
+    foreach ($products as $prod) {
+        $gridItems[] = ['type' => 'product', 'data' => $prod, 'pos' => (int)($prod['position'] ?? 0)];
+    }
+}
+usort($gridItems, fn($a, $b) => $a['pos'] <=> $b['pos']);
+
+foreach ($gridItems as $item):
+    if ($item['type'] === 'category'):
+        $cat = $item['data']; $ci = $item['colorIdx'];
+?>
   <div class="catalog-card cat-item" data-id="<?= $cat['id'] ?>" data-type="category" data-name="<?= htmlspecialchars($cat['name']) ?>" draggable="true" style="cursor:pointer;">
     <a href="/manage/catalog/browse/<?= $cat['id'] ?>" style="display:block;width:100%;height:100%;text-decoration:none;position:absolute;inset:0;z-index:1;"></a>
     <?php if ($cat['image']): ?>
       <img src="/public/uploads/<?= htmlspecialchars($cat['image']) ?>" class="catalog-card-img" alt="">
     <?php else: ?>
-      <div class="catalog-card-placeholder" style="background:<?= $palette[$i % count($palette)] ?>;">
+      <div class="catalog-card-placeholder" style="background:<?= $palette[$ci % count($palette)] ?>;">
         <?= htmlspecialchars(strtoupper($cat['name'])) ?>
       </div>
     <?php endif; ?>
@@ -234,15 +245,12 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
       </div>
     </div>
   </div>
-  <?php endforeach; ?>
-  <?php endif; ?>
-
-  <?php if ($filter !== 'all' || $insideCategory): ?>
-  <?php foreach ($products as $prod): ?>
-  <?php
-  $fileIcon = match($prod['file_mime']??'') { 'video/mp4'=>'🎬','application/pdf'=>'📄',default=>'🖼️' };
-  if ($prod['file_type']==='url') $fileIcon='🌐';
-  ?>
+<?php
+    else:
+        $prod = $item['data'];
+        $fileIcon = match($prod['file_mime']??'') { 'video/mp4'=>'🎬','application/pdf'=>'📄',default=>'🖼️' };
+        if ($prod['file_type']==='url') $fileIcon='🌐';
+?>
   <div class="catalog-card prod-item" data-id="<?= $prod['id'] ?>" data-type="product" data-name="<?= htmlspecialchars($prod['name']) ?>" draggable="true">
     <?php if ($prod['thumbnail']): ?>
       <img src="/public/uploads/<?= htmlspecialchars($prod['thumbnail']) ?>" class="catalog-card-img" alt="">
@@ -279,8 +287,10 @@ $palette = ['#6b6ef9','#22c55e','#ef4444','#f59e0b','#06b6d4','#8b5cf6','#ec4899
       </div>
     </div>
   </div>
-  <?php endforeach; ?>
-  <?php endif; ?>
+<?php
+    endif;
+endforeach;
+?>
 
 </div>
 
